@@ -1,12 +1,168 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Proximity to Thought — Prototype</title><style>
-:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#090b0d;color:#e8e4dc;font-family:Arial,Helvetica,sans-serif;overflow:hidden}.top{position:absolute;z-index:3;top:28px;left:5%;right:5%;display:flex;justify-content:space-between;font:10px monospace;letter-spacing:2px;color:#898a89}.scene{position:absolute;inset:0;width:100%;height:100%;touch-action:none}.bottom{position:absolute;bottom:27px;left:5%;right:5%;display:flex;justify-content:space-between;gap:15px;font:10px monospace;letter-spacing:1px;color:#777b7d;pointer-events:none}.detail{position:absolute;z-index:4;width:min(285px,78vw);padding:18px 19px;background:rgba(13,15,17,.95);border:1px solid #56534c;box-shadow:0 12px 45px #0008;opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .32s ease,transform .32s ease,visibility .32s;pointer-events:none}.detail.open{opacity:1;visibility:visible;transform:translateY(0);pointer-events:auto}.detail .k{font:9px monospace;letter-spacing:2px;color:#b9a88d}.detail h2{font-size:16px;font-weight:400;letter-spacing:1px;margin:12px 0 17px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:14px}.stats label{display:block;color:#777b7e;font:9px monospace;letter-spacing:1px;margin-bottom:5px}.stats span{font-size:11px}.detail p{font-size:12px;line-height:1.7;color:#bcbab4;margin:20px 0 0}.close{position:absolute;right:13px;top:12px;color:#aaa;background:none;border:0;cursor:pointer;font-size:18px}.hint{position:absolute;bottom:65px;left:50%;transform:translateX(-50%);font:10px monospace;color:#8d8e8d;letter-spacing:1px;white-space:nowrap;pointer-events:none}@media(max-width:600px){.top{top:20px}.bottom{bottom:19px;font-size:8px}.detail{bottom:85px!important;top:auto!important;left:50%!important;transform:translateX(-50%) translateY(8px)}.detail.open{transform:translateX(-50%) translateY(0)}.hint{bottom:49px;font-size:9px}}
-.zoom{position:absolute;right:5%;bottom:85px;z-index:5;display:flex;flex-direction:column;gap:7px}.zoom button{width:34px;height:34px;background:#111417;border:1px solid #55544f;color:#ddd4c6;cursor:pointer;font-size:19px}.detail.source-detail{width:min(285px,78vw);border-color:#56534c}.detail.source-detail .stats,.detail.source-detail #destination{display:none}.detail.source-detail p{font-size:12px;line-height:1.85;white-space:pre-line}.detail.source-detail h2{margin-bottom:8px}.detail a{display:inline-block;margin-top:16px;color:#e4cda7;font:10px monospace;letter-spacing:1px;text-decoration:none;border-bottom:1px solid #8d7759;padding-bottom:5px}.detail a[aria-disabled="true"]{opacity:.45;pointer-events:none}@media(max-width:600px){.zoom{right:4%;bottom:95px}} </style></head><body><div class="top"><span>FIG. 001 / PROXIMITY TO THOUGHT · V11</span><span>LAISSEZ-FAIRE</span></div><canvas id="scene" class="scene"></canvas><div id="detail" class="detail"><button class="close" id="close" aria-label="Close">×</button><div class="k" id="detailId"></div><h2 id="detailTitle"></h2><div class="stats"><div><label>PRICE</label><span id="price"></span></div><div><label>ACCESS</label><span id="access"></span></div><div><label>PROXIMITY</label><span id="proximity"></span></div><div><label>RELEASE</label><span id="release"></span></div></div><p id="description"></p><a id="destination" href="#" aria-disabled="true">DESTINATION / COMING SOON ↗</a></div><div class="zoom"><button id="zoomIn" aria-label="Zoom in">+</button><button id="zoomOut" aria-label="Zoom out">−</button><button id="focusSource" aria-label="Examine the source" title="Examine source" style="font-size:15px">◎</button><button id="resetView" aria-label="Reset view" style="font-size:12px">⌖</button></div><div class="hint">SELECT AN OBJECT OR THE SOURCE · ◎ TO ZOOM</div><div class="bottom"><span>SOURCE / 00</span><span>DRAG TO ORBIT · PINCH TO ZOOM · ◎ SOURCE CLOSE-UP</span><span>AN EXPERIMENT IN RELATION</span></div><script>
-const canvas=document.getElementById('scene'),ctx=canvas.getContext('2d');let W,H,dpr,angleX=-.47,angleY=-.24,drag=false,lastX=0,lastY=0,downX=0,downY=0,selected=1,hover=-1,zoom=1,expanded=false,now=0,paused=matchMedia('(prefers-reduced-motion: reduce)').matches,light=[0,0,0,0,0];const entries=[{id:'01',name:'ADVISORY BOARD',url:'https://advisory.benoitmalige.com',price:'$5,000 / MONTH',access:'DIRECT',proximity:'01 / 05',release:'IN CONVERSATION',description:'Three seats at the table. A private relationship built around direct access to my thinking, experience and perspective.',r:77,speed:.085,phase:.8,size:4.8},{id:'02',name:'LES ESSAIS',price:'$49 / MONTH',access:'PRIVATE · MONTHLY',proximity:'02 / 05',release:'2–13 MONTHS EARLY',description:'An unpublished physical essay delivered to your home each month. The ideas are shared privately before their eventual public release.',r:130,speed:.057,phase:2.2,size:6.5},{id:'03',name:'BOOKS',url:'https://identity-tax.benoitmalige.com',price:'PER EDITION',access:'PUBLIC',proximity:'03 / 05',release:'COLLECTED EDITIONS',description:'Ideas gathered, developed, and published for anyone to read. A growing archive of thought.',r:186,speed:.039,phase:5.4,size:5.4},{id:'04',name:'NEWSLETTER',url:'https://benoitmalige.com',price:'FREE',access:'WEEKLY-ISH',proximity:'04 / 05',release:'ONGOING',description:'Notes, questions and discoveries shared directly by email.',r:245,speed:.027,phase:3.8,size:4.5},{id:'05',name:'PUBLIC CONTENT',url:'https://www.instagram.com/benoit_malige/',price:'FREE',access:'OPEN',proximity:'05 / 05',release:'ONGOING',description:'Videos, observations and experiments shared freely with the world.',r:306,speed:.019,phase:1.9,size:4}];const advisoryPhases=[0,2.094,4.189];let targets=[];
+
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Proximity to Thought — Precision Graphite Study</title><style>
+:root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f3f0e8;color:#333c43;font-family:Arial,Helvetica,sans-serif;overflow:hidden}.top{position:absolute;z-index:3;top:28px;left:5%;right:5%;display:flex;justify-content:space-between;font:10px monospace;letter-spacing:2px;color:#706b63}.scene{position:absolute;inset:0;width:100%;height:100%;touch-action:none}.bottom{position:absolute;bottom:27px;left:5%;right:5%;display:flex;justify-content:space-between;gap:15px;font:10px monospace;letter-spacing:1px;color:#827c72;pointer-events:none}.detail{position:absolute;z-index:4;width:min(285px,78vw);padding:18px 19px;background:rgba(58,53,47,.96);border:1px solid #a59b8a;box-shadow:0 12px 45px #5b51432a;opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .32s ease,transform .32s ease,visibility .32s;pointer-events:none}.detail.open{opacity:1;visibility:visible;transform:translateY(0);pointer-events:auto}.detail .k{font:9px monospace;letter-spacing:2px;color:#78644d}.detail h2{font-size:16px;font-weight:400;letter-spacing:1px;margin:12px 0 17px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:14px}.stats label{display:block;color:#82786c;font:9px monospace;letter-spacing:1px;margin-bottom:5px}.stats span{font-size:11px}.detail p{font-size:12px;line-height:1.7;color:#625c52;margin:20px 0 0}.close{position:absolute;right:13px;top:12px;color:#655f55;background:none;border:0;cursor:pointer;font-size:18px}.hint{position:absolute;bottom:65px;left:50%;transform:translateX(-50%);font:10px monospace;color:#827c72;letter-spacing:1px;white-space:nowrap;pointer-events:none}@media(max-width:600px){.top{top:20px}.bottom{bottom:19px;font-size:8px}.detail{bottom:85px!important;top:auto!important;left:50%!important;transform:translateX(-50%) translateY(8px)}.detail.open{transform:translateX(-50%) translateY(0)}.hint{bottom:49px;font-size:9px}}
+.zoom{position:absolute;right:5%;bottom:85px;z-index:5;display:flex;flex-direction:column;gap:7px}.zoom button{width:34px;height:34px;background:#f0ebdf;border:1px solid #a79d8c;color:#514b43;cursor:pointer;font-size:19px}.detail.source-detail{width:min(285px,78vw);border-color:#a59b8a}.detail.source-detail .stats,.detail.source-detail #destination{display:none}.detail.source-detail p{font-size:12px;line-height:1.85;white-space:pre-line}.detail.source-detail h2{margin-bottom:8px}.detail a{display:inline-block;margin-top:16px;color:#685744;font:10px monospace;letter-spacing:1px;text-decoration:none;border-bottom:1px solid #a89b86;padding-bottom:5px}.detail a[aria-disabled="true"]{opacity:.45;pointer-events:none}.detail.essais-detail{width:min(370px,88vw);max-height:min(78vh,620px);overflow-y:auto}.detail.essais-detail p{white-space:pre-line;line-height:1.75;margin-top:17px}.detail.essais-detail .stats{gap:11px}.detail.essais-detail h2{margin-bottom:13px}@media(max-width:600px){.zoom{right:4%;bottom:95px}} 
+/* Spatial instrument: no paper frame, no opaque onboarding backdrop. */
+.top,.bottom,.hint{color:#67737b}.zoom button{background:rgba(248,247,243,.82);border:1px solid #aeb8bd;color:#43535e}.detail{background:rgba(247,246,241,.97);border:1px solid #aeb8bd;box-shadow:0 12px 40px #35424c18;color:#303b43}.detail h2{color:#303b43}.detail p{color:#53616b}.detail .k,.stats label,.detail a{color:#687a86}.detail .close{color:#43535e}
+.intro{position:absolute;z-index:7;left:clamp(24px,8vw,140px);top:50%;transform:translateY(-50%);width:min(390px,calc(100vw - 48px));padding:25px 26px 22px;background:rgba(246,244,237,.88);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);border:1px solid rgba(107,123,134,.25);box-shadow:0 15px 55px #53657510;transition:opacity .55s ease,transform .55s ease,visibility .55s;opacity:1;visibility:visible}
+.intro.hidden{opacity:0;visibility:hidden;transform:translateY(calc(-50% + 12px));pointer-events:none}.intro-kicker{font:9px monospace;letter-spacing:2px;color:#6e7d86;display:flex;gap:12px}.intro-kicker span{opacity:.6}.intro-close{position:absolute;right:17px;top:12px;border:0;background:transparent;color:#687782;font-size:21px;cursor:pointer}.intro h1{font:normal clamp(26px,3vw,35px)/1.1 Georgia,serif;letter-spacing:-.8px;margin:24px 0 20px;color:#303b43}.intro p{font:13px/1.75 Arial,sans-serif;color:#505e67;margin:0 0 13px}.intro-footer{margin-top:24px;padding-top:16px;border-top:1px solid #aab6bb75;display:flex;gap:15px;align-items:center;justify-content:space-between}.intro-footer span{font:8px/1.65 monospace;letter-spacing:.4px;color:#77848b;max-width:210px}.intro-footer button{white-space:nowrap;border:0;background:transparent;padding:8px 0;font:10px monospace;letter-spacing:1px;color:#354f60;cursor:pointer}.about{position:absolute;z-index:6;left:5%;bottom:78px;border:1px solid #aeb8bd;background:#f3f0e8cc;color:#43535e;padding:8px 10px;cursor:pointer;font:10px monospace;letter-spacing:.5px}.about span{margin-left:8px}@media(max-width:600px){.intro{left:16px;top:50%;width:calc(100vw - 32px);padding:21px 20px 18px}.intro h1{margin:16px 0;font-size:28px}.intro p{font-size:12px;line-height:1.65}.intro-footer{margin-top:15px}.intro-footer span{font-size:8px}.about{left:4%;bottom:86px}.about span{display:none}.bottom span:first-child,.bottom span:last-child{display:none}.bottom{justify-content:center}.top{font-size:8px;letter-spacing:1px}}
+@media(prefers-reduced-motion:reduce){.intro{transition:none}}
+
+
+/* V16: an independent floating cluster, rather than a docked rectangular card */
+.thought-trigger{position:absolute;z-index:7;left:4.5%;bottom:153px;display:flex;align-items:center;gap:12px;border:0;background:transparent;color:#465a63;padding:8px 9px 8px 4px;cursor:pointer;font:10px monospace;letter-spacing:1.05px;text-align:left;box-shadow:none;animation:thoughtFloat 7s ease-in-out infinite}
+.thought-trigger:hover,.thought-trigger:focus-visible{background:transparent;color:#233c4a;outline:none}
+.thought-trigger:focus-visible .thought-orb{outline:1px solid #647d88;outline-offset:12px}
+.thought-orb{display:block;width:31px;height:31px;border:1px solid #82949b;border-radius:50%;position:relative;flex:none;background:radial-gradient(circle at 40% 35%,#617985 0 2px,transparent 3px)}
+.thought-orb:before{content:'';position:absolute;inset:-8px;border:1px dashed #a0aeb4;border-radius:50%;transform:rotate(-18deg)}
+.thought-orb:after{content:'';position:absolute;width:7px;height:7px;border:1px solid #7c9099;background:#f4f1e9;border-radius:50%;top:-8px;right:-5px}
+.thought-trigger small{display:block;color:#839199;font:8px monospace;letter-spacing:.7px;margin-top:5px;text-align:left}
+.thought-trigger .thought-chevron{font-size:15px;color:#809099;margin-left:6px}
+@keyframes thoughtFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+.thought-panel{position:absolute;z-index:9;left:4%;bottom:225px;width:min(465px,92vw);max-height:min(65vh,570px);overflow:auto;background:rgba(246,245,239,.97);border:1px solid #b4bec0;box-shadow:0 16px 45px #34444a18;padding:20px 22px 22px;color:#37454c;display:none;backdrop-filter:blur(9px)}
+.thought-panel.open{display:block;animation:thoughtAppear .25s ease-out}
+@keyframes thoughtAppear{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.thought-head{display:flex;align-items:center;justify-content:space-between;gap:15px;border-bottom:1px solid #c5cdd0;padding-bottom:16px}
+.thought-kicker{font:9px monospace;letter-spacing:1.5px;color:#75868e}
+.thought-heading{font:normal 23px/1.15 Georgia,serif;margin:7px 0 0;color:#34434c}
+.thought-close{position:static!important;font:22px Arial,sans-serif;border:0;background:transparent;color:#61717b;cursor:pointer;padding:3px 8px}
+.thought-intro{font:12px/1.7 Arial,sans-serif;color:#697780;margin:16px 0 14px}
+.thought-item{border-top:1px solid #c6cfd1}
+.thought-item:last-of-type{border-bottom:1px solid #c6cfd1}
+.thought-item summary{list-style:none;display:flex;align-items:center;gap:12px;padding:16px 0;cursor:pointer}
+.thought-item summary::-webkit-details-marker{display:none}
+.thought-index{font:10px monospace;color:#87969c;flex:none}
+.thought-item-title{font:normal 16px/1.35 Georgia,serif;flex:1;color:#394b55}
+.thought-state{font:8px monospace;color:#83939a;letter-spacing:.6px}
+.thought-plus{font:18px monospace;color:#7a8c94;transition:transform .2s}
+.thought-item[open] .thought-plus{transform:rotate(45deg)}
+.thought-item-body{padding:0 0 18px 29px}
+.thought-item-body p{font:13px/1.8 Arial,sans-serif;color:#52636b;margin:0 0 15px}
+.thought-meta{font:9px/1.5 monospace;letter-spacing:.7px;color:#829098;margin-bottom:14px}
+.thought-vote{display:inline-flex;gap:10px;align-items:center;border:1px solid #9aaeb5;background:transparent;padding:10px 13px;font:10px monospace;letter-spacing:1px;color:#4b6470;cursor:pointer}
+.thought-vote[aria-pressed="true"]{background:#e2e9e8;border-color:#647f8a}
+.thought-note{font:9px/1.6 monospace;color:#87949a;margin-top:12px}
+@media(max-width:600px){.thought-trigger{left:4%;bottom:164px;gap:10px}.thought-panel{left:4%;bottom:235px;width:92vw;max-height:58vh;padding:16px}.thought-heading{font-size:22px}.thought-state{display:none}.thought-intro{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.thought-trigger{animation:none}.thought-panel.open{animation:none}}
+
+/* V17 / light, floating field notes */
+.detail{z-index:12}
+.intro{z-index:15}
+.thought-trigger{z-index:4}
+.thought-panel{z-index:11;background:rgba(246,244,237,.98);border:0;border-top:1px solid #9cabb0;box-shadow:0 14px 45px rgba(39,53,59,.13);padding:20px 24px 18px}
+.thought-head{border-bottom:0;padding-bottom:6px}
+.thought-heading{font-size:22px;letter-spacing:-.35px}
+.thought-intro{border-bottom:1px solid #c5cdcd;padding-bottom:20px;margin:15px 0 4px;line-height:1.75}
+.thought-item{border-top:0;border-bottom:1px solid #cbd2d2}
+.thought-item:last-of-type{border-bottom:1px solid #cbd2d2}
+.thought-item summary{padding:16px 0}
+.thought-item-title{font-size:16px}
+.thought-item-body{padding-bottom:20px}
+.thought-item-body p{font-size:12.5px;line-height:1.75}
+.thought-vote,.thought-vote[aria-pressed=true]{border:0;background:transparent;padding:4px 0;gap:8px;font:10px monospace;letter-spacing:1.1px;box-shadow:none;color:#627b84}
+.thought-vote:hover{color:#334f59;text-decoration:underline;text-underline-offset:4px}
+.thought-vote .interest-mark{display:inline-grid;place-items:center;border:1px solid #8da0a7;border-radius:50%;width:24px;height:24px;font:15px Georgia,serif;line-height:1;transition:transform .2s}
+.thought-vote[aria-pressed=true] .interest-mark{background:#dce5e5;transform:rotate(45deg)}
+.thought-note{font-size:8px;line-height:1.6;margin-top:15px}
+@media(max-width:600px){.thought-panel{padding:17px 18px 17px;max-height:62vh;bottom:235px}.thought-heading{font-size:21px}.thought-intro{font-size:12px;line-height:1.7}.thought-item-title{font-size:15px}.thought-item-body p{font-size:12px}}
+
+/* V18 — actual spatial redesign: no modal card, no rectangular panel silhouette. */
+.thought-panel{position:fixed;z-index:11;inset:0;width:100vw;max-height:none;overflow-y:auto;overscroll-behavior:contain;border:0!important;border-top:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:transparent!important;padding:clamp(90px,13vh,135px) max(7vw,28px) 110px;display:none;animation:none!important;scrollbar-width:thin}
+.thought-panel.open{display:block}
+.thought-panel::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse 72% 65% at 39% 40%,rgba(243,240,232,.98) 0%,rgba(243,240,232,.95) 46%,rgba(243,240,232,.75) 73%,rgba(243,240,232,.20) 100%)}
+.thought-head,.thought-intro,#thoughtList,.thought-note{width:min(620px,100%);margin-left:auto;margin-right:auto}
+.thought-head{border:0;padding:0 0 14px;align-items:flex-start}
+.thought-kicker{letter-spacing:2px;font-size:10px}
+.thought-heading{font:normal clamp(31px,5vw,46px)/1.15 Georgia,serif;margin-top:12px;letter-spacing:-1px}
+.thought-close{font-size:26px;padding:0 4px;position:fixed!important;right:6vw;top:7vh;z-index:2}
+.thought-intro{border:0!important;padding:0 0 29px!important;margin-top:16px;margin-bottom:15px;font:13px/1.9 Arial,sans-serif;color:#6a777c;max-width:620px}
+.thought-item{border:0!important;border-top:1px solid rgba(106,124,130,.30)!important;background:transparent!important}
+.thought-item:last-of-type{border-bottom:1px solid rgba(106,124,130,.30)!important}
+.thought-item summary{padding:22px 0;gap:14px}
+.thought-index{font-size:10px;color:#91a0a4}
+.thought-item-title{font:normal clamp(20px,3.6vw,27px)/1.35 Georgia,serif;letter-spacing:-.25px}
+.thought-item-body{padding:0 25px 27px 32px}
+.thought-item-body p{font:13px/1.85 Arial,sans-serif;max-width:540px}
+.thought-vote{border:0!important;background:transparent!important;box-shadow:none!important;padding:5px 0!important;gap:7px;color:#617780}
+.thought-vote[aria-pressed=true]{color:#2f5466}
+.thought-vote .interest-mark{font-size:20px}
+.thought-note{padding-top:18px;font-size:9px;line-height:1.7}
+.thought-trigger{z-index:4}
+body:has(.thought-panel.open) .thought-trigger{opacity:0;pointer-events:none}
+@media(max-width:600px){
+ .thought-panel{inset:0;width:100vw;max-height:none;padding:clamp(78px,12vh,110px) 8vw 105px}
+ .thought-panel::before{background:radial-gradient(ellipse 105% 70% at 48% 38%,rgba(243,240,232,.99) 0%,rgba(243,240,232,.97) 58%,rgba(243,240,232,.77) 85%,rgba(243,240,232,.4) 100%)}
+ .thought-head{padding-bottom:10px}
+ .thought-heading{font-size:32px}
+ .thought-close{top:6vh;right:7vw}
+ .thought-intro{font-size:12px;line-height:1.8;margin-top:14px;padding-bottom:21px!important}
+ .thought-item summary{padding:19px 0;gap:11px}
+ .thought-item-title{font-size:22px}
+ .thought-item-body{padding:0 7px 23px 28px}
+ .thought-item-body p{font-size:12px;line-height:1.8}
+ .thought-note{font-size:8px}
+}
+
+/* V19 — compact orbital notes index, restrained technical typography */
+.thought-panel{position:fixed!important;inset:auto auto 185px 5%!important;width:min(400px,90vw)!important;max-height:min(55vh,510px)!important;overflow:auto!important;padding:14px 17px 13px!important;background:rgba(244,242,235,.96)!important;border:0!important;border-left:1px solid rgba(104,124,133,.5)!important;box-shadow:none!important;backdrop-filter:blur(6px)!important;overscroll-behavior:contain}
+.thought-panel::before{display:none!important}
+.thought-head,.thought-intro,#thoughtList,.thought-note{width:100%!important;margin-left:0!important;margin-right:0!important}
+.thought-head{padding:0 0 9px!important;align-items:center!important;border:0!important}
+.thought-kicker{font:9px/1.4 monospace!important;letter-spacing:1.4px!important;color:#71838a}
+.thought-heading{font:11px/1.4 monospace!important;letter-spacing:1.4px!important;text-transform:uppercase!important;margin:4px 0 0!important;color:#394d57}
+.thought-close{position:static!important;font:18px/1 monospace!important;padding:4px 5px!important}
+.thought-intro{font:10px/1.65 Arial,sans-serif!important;color:#67777e!important;padding:0 0 12px!important;margin:5px 0 0!important;border:0!important;max-width:none!important}
+.thought-item{border:0!important;border-top:1px solid rgba(106,124,130,.29)!important;background:transparent!important}
+.thought-item:last-of-type{border-bottom:1px solid rgba(106,124,130,.29)!important}
+.thought-item summary{padding:12px 0!important;gap:10px!important;align-items:center!important}
+.thought-index{font:9px monospace!important;color:#8b999e!important}
+.thought-item-title{font:11px/1.5 monospace!important;letter-spacing:.1px!important;color:#40515a!important}
+.thought-state{display:none!important}
+.thought-plus{font:14px monospace!important}
+.thought-item-body{padding:0 6px 14px 31px!important}
+.thought-item-body p{font:11px/1.7 Arial,sans-serif!important;color:#576970!important;margin:0 0 11px!important}
+.thought-meta{font:8px/1.5 monospace!important;margin-bottom:8px!important}
+.thought-vote{font:9px monospace!important;padding:3px 0!important;gap:6px!important}
+.thought-vote .interest-mark{width:18px!important;height:18px!important;font-size:12px!important}
+.thought-note{font:8px/1.5 monospace!important;margin-top:10px!important;padding:0!important}
+body:has(.thought-panel.open) .thought-trigger{opacity:0;pointer-events:none}
+@media(max-width:600px){.thought-panel{left:5%!important;bottom:225px!important;width:88vw!important;max-height:52vh!important;padding:13px 15px!important}.thought-item-title{font-size:11px!important}.thought-intro{font-size:10px!important}.thought-item summary{padding:11px 0!important}}
+
+/* V21: simple destination links, two books */
+.books-links{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-top:14px}.books-links[hidden]{display:none}.books-links a{margin-top:5px}.detail.essais-detail{max-height:min(80vh,660px)}
+/* V20: relative commitment instead of prices */
+.commitment{display:inline-flex;align-items:center;gap:9px;white-space:nowrap;font:9px monospace;letter-spacing:.6px}.commitment-dots{display:inline-flex;gap:5px}.commitment-dots i{display:block;width:8px;height:8px;border:1px solid #8a9ba2;border-radius:50%}.commitment-dots i.filled{background:#667d89;border-color:#667d89}.stripe-checkout{margin-top:19px;padding-top:15px;border-top:1px solid #c2c9ca}.stripe-checkout[hidden],#destination[hidden]{display:none}.checkout-label{font:9px monospace;letter-spacing:1px;color:#6c7d84;margin-bottom:12px}.detail.essais-detail{max-height:min(80vh,660px)}
+.books-links{gap:0;margin-top:14px}.book-entry{padding:13px 0;border-top:1px solid #b8c3c5}.book-heading{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font:10px/1.5 monospace;letter-spacing:.5px;color:#354650}.book-year{color:#7b8b92;flex:none}.books-links .book-entry p{margin:7px 0 3px;font:11px/1.65 Arial,sans-serif;color:#596b73;white-space:normal}.books-links .book-entry a{margin-top:8px;font-size:9px}
+/* V24 — private advisory letter, spatial and restrained */
+.advisory-letter{position:fixed;inset:0;z-index:18;display:none;overflow-y:auto;overscroll-behavior:contain;background:radial-gradient(ellipse at 48% 42%,rgba(243,240,232,.99) 0%,rgba(243,240,232,.97) 57%,rgba(243,240,232,.80) 100%);padding:clamp(65px,10vh,110px) 24px 80px;color:#394b54}
+.advisory-letter.open{display:block}
+.advisory-inner{width:min(570px,100%);margin:0 auto}
+.advisory-kicker{font:10px/1.5 monospace;letter-spacing:1.6px;color:#829198}
+.advisory-letter h2{font:normal clamp(32px,5vw,45px)/1.12 Georgia,serif;letter-spacing:-.9px;margin:15px 0 9px;color:#33434c}
+.advisory-subtitle{font:10px/1.5 monospace;letter-spacing:1.2px;color:#7d8d95;margin-bottom:35px}
+.advisory-copy p{font:15px/1.8 Georgia,serif;margin:0 0 20px;color:#42515a}
+.advisory-copy .advisory-lead{font-size:19px;line-height:1.6;color:#34434b}
+.advisory-copy .advisory-fee{font:12px/1.6 monospace;letter-spacing:.4px;color:#34434b;margin-top:25px}
+.advisory-rule{height:1px;background:rgba(105,123,132,.32);margin:25px 0}
+.advisory-action{display:inline-block;font:11px/1.5 monospace;letter-spacing:1.1px;color:#385562;text-decoration:none;border-bottom:1px solid #78909a;padding:7px 0}
+.advisory-action:hover{color:#1c3743;border-color:#1c3743}
+.advisory-email{font:10px/1.5 monospace;color:#7b8990;margin-top:13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.advisory-email button{border:0;border-bottom:1px solid #a6b3b7;background:none;padding:2px 0;font:9px monospace;color:#5d7680;cursor:pointer}
+.advisory-close{position:fixed;right:clamp(20px,6vw,85px);top:clamp(20px,6vh,60px);border:0;background:transparent;color:#667780;font:26px Arial,sans-serif;cursor:pointer;padding:6px 10px}
+@media(max-width:600px){.advisory-letter{padding:77px 8vw 75px}.advisory-copy p{font-size:14px;line-height:1.78}.advisory-copy .advisory-lead{font-size:18px}.advisory-subtitle{margin-bottom:27px}.advisory-close{top:17px;right:18px}}
+</style></head><body><div class="top"><span>FIG. 001 / PROXIMITY TO THOUGHT</span><span>BENOIT MALIGE</span></div><canvas id="scene" class="scene"></canvas><div class="intro" id="intro" role="region" aria-label="Introduction to Proximity to Thought"><div class="intro-kicker">AN INTRODUCTION <span>001</span></div><button class="intro-close" id="introClose" aria-label="Close introduction">×</button><h1>Proximity to Thought</h1><p>This is a visual representation of the different ways you can engage with my ideas.</p><p>At the center is an evolving process of thinking, shaped by experience, relationships, and curiosity. Each orbit is a different way of participating in that process.</p><p>There is no prescribed path. Explore whichever direction interests you.</p><div class="intro-footer"><span>DRAG TO ROTATE · SELECT TO DISCOVER · SCROLL TO ZOOM</span><button id="introExplore">EXPLORE ↗</button></div></div><button class="about" id="introReopen" aria-label="About this space">? <span>ABOUT THIS SPACE</span></button><div id="detail" class="detail"><button class="close" id="close" aria-label="Close">×</button><div class="k" id="detailId"></div><h2 id="detailTitle"></h2><div class="stats"><div><label>COMMITMENT</label><span id="price"></span></div><div><label>ACCESS</label><span id="access"></span></div><div><label>PROXIMITY</label><span id="proximity"></span></div><div><label>FORMAT</label><span id="release"></span></div></div><p id="description"></p><a id="destination" href="#" aria-disabled="true">DESTINATION / COMING SOON ↗</a><div id="booksLinks" class="books-links" hidden><div class="book-entry"><div class="book-heading"><span>THE IDENTITY TAX</span><span class="book-year">2026</span></div><p>How to stop living according to an identity you never consciously chose.</p><a href="https://identity-tax.benoitmalige.com/" target="_blank" rel="noopener noreferrer">EXPLORE BOOK ↗</a></div><div class="book-entry"><div class="book-heading"><span>UNF*CK YOUR THINKING</span><span class="book-year">2025</span></div><p>For smart people tired of getting bullied by their own brain.</p><a href="https://book.benoitmalige.com" target="_blank" rel="noopener noreferrer">EXPLORE BOOK ↗</a></div></div></div><section id="advisoryLetter" class="advisory-letter" role="dialog" aria-modal="true" aria-labelledby="advisoryHeading" aria-hidden="true"><button class="advisory-close" id="advisoryClose" aria-label="Close advisory letter">×</button><div class="advisory-inner"><div class="advisory-kicker">OBJECT 01 / CLOSEST PROXIMITY</div><h2 id="advisoryHeading">The Advisory Board</h2><div class="advisory-subtitle">A PRIVATE RELATIONSHIP · THREE SEATS MAXIMUM</div><div class="advisory-copy"><p class="advisory-lead">I keep a small table. It does not fit many, on purpose.</p><p>You're the person everyone comes to for answers. Your team, your clients, your partners, your family. You've become very good at seeing what other people cannot see for themselves.</p><p>But who does that for you?</p><p>The people around you have a stake in your decisions. Even the ones who love you. And sometimes the people best positioned to help are the ones you cannot afford to let see you uncertain.</p><p>I don't know your business better than you do. I've never needed to.</p><p>I'm interested in the patterns behind your decisions. The ones that keep producing the same problems under different names. Once you can see the architecture, the situation usually becomes much simpler.</p><p>You bring me what you're facing. I give you my read. We work through what happens next.</p><p>If you've seen <em>Pulp Fiction</em>, you know The Wolf. The man they call when there's a body in the car and no time to panic. He arrives, looks at the situation, and tells everyone what happens next.</p><p>Same job. Yours hopefully smells better.</p><p>Business, relationships, identity, direction. Whatever is actually producing the problem. Nothing is off the table.</p><p>I work with no more than three people at a time. Every conversation is confidential. I don't disclose who I work with, and I don't ask for testimonials.</p><div class="advisory-rule"></div><p class="advisory-fee">$15,000 / THREE MONTHS</p><p>If you're interested, email me. I'll let you know whether I currently have room to work together or whether I can add you to the waitlist.</p><a class="advisory-action" href="mailto:benoit.malige@gmail.com?subject=Advisory%20Board%20Inquiry">WRITE TO ME ↗</a><div class="advisory-email"><span>benoit.malige@gmail.com</span><button id="advisoryCopy" type="button">COPY ADDRESS ↗</button></div></div></div></section><button class="thought-trigger" id="thoughtTrigger" aria-expanded="false" aria-controls="thoughtPanel"><span class="thought-orb" aria-hidden="true"></span><span>UNFINISHED THOUGHTS<small>OPEN LOOPS / 003</small></span><span class="thought-chevron" aria-hidden="true">↗</span></button><section class="thought-panel" id="thoughtPanel" role="region" aria-label="Unfinished thoughts" aria-hidden="true"><header class="thought-head"><div><div class="thought-kicker">FIELD NOTES / WORK IN PROGRESS</div><h2 class="thought-heading">Unfinished thoughts</h2></div><button class="thought-close" id="thoughtClose" aria-label="Close unfinished thoughts">×</button></header><p class="thought-intro">My notes app, made public. Ideas before they become anything — maybe a video, newsletter, or book chapter. Maybe nothing. Mark what makes you curious.</p><div id="thoughtList"><details class="thought-item" open><summary><span class="thought-index">001</span><span class="thought-item-title">Expression, depression, and open loops</span><span class="thought-state">EXPLORING</span><span class="thought-plus">+</span></summary><div class="thought-item-body"><p>I've noticed that periods of intense creativity sometimes turn into periods where I don't want to do anything. I suspect the accumulation of unfinished ideas and obligations plays a role. I'm trying to understand when creative possibilities begin to feel like debts.</p><div class="thought-meta">CREATIVITY / PERSONAL OBSERVATION</div><button class="thought-vote" data-thought="001" aria-pressed="false"><span class="interest-mark" aria-hidden="true">✳</span><span class="vote-label">CURIOUS</span></button></div></details><details class="thought-item"><summary><span class="thought-index">002</span><span class="thought-item-title">The limits of certainty after Descartes</span><span class="thought-state">EXPLORING</span><span class="thought-plus">+</span></summary><div class="thought-item-body"><p>Descartes used doubt to search for certainty. I'm interested in what happens after we recognize the limits of what we can know: whether accepting those constraints frees us to investigate how to live rather than trying to solve existence itself.</p><div class="thought-meta">PHILOSOPHY / UNCERTAINTY</div><button class="thought-vote" data-thought="002" aria-pressed="false"><span class="interest-mark" aria-hidden="true">✳</span><span class="vote-label">CURIOUS</span></button></div></details><details class="thought-item"><summary><span class="thought-index">003</span><span class="thought-item-title">Can anything be defined without relation?</span><span class="thought-state">EXPLORING</span><span class="thought-plus">+</span></summary><div class="thought-item-body"><p>Can we name a single thing that has meaning independently of its relationship to something else? I'm exploring whether identity, meaning, and even our descriptions of reality depend on relations.</p><div class="thought-meta">PHILOSOPHY / IDENTITY</div><button class="thought-vote" data-thought="003" aria-pressed="false"><span class="interest-mark" aria-hidden="true">✳</span><span class="vote-label">CURIOUS</span></button></div></details></div><div class="thought-note">A small signal of curiosity, not a request or a deadline. Interest is saved on this device for now.</div></section><div class="zoom"><button id="zoomIn" aria-label="Zoom in">+</button><button id="zoomOut" aria-label="Zoom out">−</button><button id="focusSource" aria-label="Examine the source" title="Examine source" style="font-size:15px">◎</button><button id="resetView" aria-label="Reset view" style="font-size:12px">⌖</button></div><div class="hint">SELECT AN OBJECT · DRAG TO ORBIT · ◎ TO EXPLORE THE SOURCE</div><div class="bottom"><span>SOURCE / 00</span><span>DRAG TO ORBIT · PINCH TO ZOOM · ◎ SOURCE CLOSE-UP</span><span>AN EXPERIMENT IN RELATION</span></div><script>
+const canvas=document.getElementById('scene'),ctx=canvas.getContext('2d');let W,H,dpr,angleX=-.47,angleY=-.24,drag=false,lastX=0,lastY=0,downX=0,downY=0,selected=-2,hover=-1,zoom=1,expanded=false,now=0,paused=matchMedia('(prefers-reduced-motion: reduce)').matches,light=[0,0,0,0,0,0];const entries=[{id:'01',name:'ADVISORY BOARD',tagline:'THINKING TOGETHER',price:'PAID',commitment:4,access:'DIRECT',proximity:'01 / 06',release:'IN CONVERSATION',description:'I keep a small table. It does not fit many, on purpose. A private advisory relationship, with no more than three people at a time.',r:77,speed:.085,phase:.8,size:4.8},{id:'02',name:'LES ESSAIS',tagline:'A MONTHLY PRACTICE IN INDEPENDENT THOUGHT',price:'PAID',commitment:2,access:'CO-AUTHORED · MONTHLY',proximity:'02 / 06',release:'PHYSICAL · ANALOG',description:'Each issue arrives in your mailbox, in print. At the end is a question for the following month. That question begins our next investigation.\n\nFor 30 days, we live with it. We observe, question, write, disagree, and work toward our own conclusions before bringing our thinking together. I am working on the same question, too.\n\nWhat we discover helps shape the next issue. It does not exist yet; we are about to write it.\n\nThis is a recurring philosophical experiment in co-authorship. Writing is where we practice. Judgment is what we train.',r:130,speed:.057,phase:2.2,size:6.5},{id:'03',name:'THE SECOND LIFE',tagline:'THE DOUBLE ENTRY PROTOCOL',url:'https://gap.benoitmalige.com/',price:'PAID',commitment:3,access:'SELF-DIRECTED · LIVE REVIEWS',proximity:'03 / 06',release:'60-DAY PROTOCOL',description:'A 60-day process for closing the gap between what you know and how you actually live.\n\nA 15-minute daily writing practice, six modules, the Identity Atlas, a signed Second Life Contract, and live Implementation Reviews. Lifetime access.\n\nWatch the 15-minute introduction to discover how it works.',r:165,speed:.047,phase:4.4,size:5.9},{id:'04',name:'BOOKS',tagline:'PUBLISHED WORKS',price:'PAID',commitment:1,access:'PUBLIC',proximity:'04 / 06',release:'COLLECTED EDITIONS',description:'',r:201,speed:.039,phase:5.4,size:5.4},{id:'05',name:'THE SECOND LIFE NEWSLETTER',tagline:'THOUGHTS IN PROGRESS',url:'https://benoitmalige.com',price:'FREE',commitment:0,access:'WEEKLY-ISH',proximity:'05 / 06',release:'ONGOING',description:'Deconstructing the patterns of identity, success, and what it means to live a life you chose.',r:260,speed:.027,phase:3.8,size:4.5},{id:'06',name:'PUBLIC CONTENT',tagline:'IDEAS IN THE OPEN',url:'https://www.instagram.com/benoit_malige/',price:'FREE',commitment:0,access:'OPEN',proximity:'06 / 06',release:'ONGOING',description:'Videos, observations and experiments shared freely with the world.',r:322,speed:.019,phase:1.9,size:4}];let targets=[];
+const paper=document.createElement('canvas');paper.width=160;paper.height=160;
+const paperCtx=paper.getContext('2d');const pixels=paperCtx.createImageData(160,160);
+let grainSeed=91837;
+for(let i=0;i<pixels.data.length;i+=4){grainSeed=(1664525*grainSeed+1013904223)>>>0;const shade=(grainSeed>>>24)&255;pixels.data[i]=84;pixels.data[i+1]=76;pixels.data[i+2]=62;pixels.data[i+3]=Math.floor(shade*.004)}
+paperCtx.putImageData(pixels,0,0);const paperPattern=ctx.createPattern(paper,'repeat');
+
 function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
 function project(x,y,z){let driftX=(Math.sin(now*.16)*24+Math.sin(now*.073+1.7)*13)*(W<600?.6:1),driftY=(Math.cos(now*.13+.4)*18+Math.sin(now*.059)*11)*(H<600?.6:1);let cy=Math.cos(angleY),sy=Math.sin(angleY),cx=Math.cos(angleX),sx=Math.sin(angleX);let xx=x*cy+z*sy,zz=-x*sy+z*cy,yy=y*cx-zz*sx,depth=y*sx+zz*cx;let scale=Math.min(W/790,H/730,1.28)*zoom;let perspective=740/(740+depth*.66);return{x:W*.5+driftX+xx*scale*perspective,y:H*.51+driftY+yy*scale*perspective,z:depth,scale:scale*perspective}}
 function orbitPoint(r,a,i){let tilt=i*.12;return project(Math.cos(a)*r,Math.sin(a)*r*Math.sin(tilt),Math.sin(a)*r*Math.cos(tilt))}
-function render(ts){let dt=Math.min((ts-(render.prev||ts))/1000,.05);render.prev=ts;if(!paused)now+=dt;ctx.clearRect(0,0,W,H);ctx.fillStyle='#090b0d';ctx.fillRect(0,0,W,H);let c=project(0,0,0);let glow=ctx.createRadialGradient(c.x,c.y,0,c.x,c.y,Math.min(W,H)*.23);glow.addColorStop(0,'rgba(157,183,204,.15)');glow.addColorStop(.3,'rgba(105,140,166,.05)');glow.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=glow;ctx.beginPath();ctx.arc(c.x,c.y,Math.min(W,H)*.23,0,Math.PI*2);ctx.fill();targets=[];
-ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,(5.5-zoom)/2.5));entries.forEach((o,i)=>{light[i]+=(Number(i===selected)-light[i])*Math.min(1,dt*3.8);for(let layer=0;layer<2;layer++){ctx.beginPath();let drawing=false;for(let j=0;j<=420;j++){let a=j/420*Math.PI*2,p=orbitPoint(o.r,a,i),front=p.z>=0;if(front===(layer===1)){if(!drawing)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);drawing=true}else drawing=false}ctx.strokeStyle=layer===0?`rgba(118,124,132,${.12+light[i]*.20})`:`rgba(154,160,166,${.25+light[i]*.65})`;ctx.lineWidth=.6+light[i]*.65;ctx.stroke()}});
+function render(ts){let dt=Math.min((ts-(render.prev||ts))/1000,.05);render.prev=ts;if(!paused)now+=dt;ctx.clearRect(0,0,W,H);ctx.fillStyle='#f3f0e8';ctx.fillRect(0,0,W,H);ctx.fillStyle=paperPattern;ctx.fillRect(0,0,W,H);let c=project(0,0,0);targets=[];
+ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,(5.5-zoom)/2.5));entries.forEach((o,i)=>{light[i]+=(Number(i===selected||i===hover)-light[i])*Math.min(1,dt*3.8);for(let layer=0;layer<2;layer++){ctx.beginPath();let drawing=false;for(let j=0;j<=420;j++){let a=j/420*Math.PI*2,p=orbitPoint(o.r,a,i),front=p.z>=0;if(front===(layer===1)){if(!drawing)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);drawing=true}else drawing=false}ctx.strokeStyle=layer===0?`rgba(67,81,92,${.09+light[i]*.16})`:`rgba(67,81,92,${.21+light[i]*.55})`;ctx.lineWidth=.6+light[i]*.65;ctx.stroke()}});
 ctx.restore();
 // Source has its own spatial orientation. Dragging the view now reveals different
 // sides of its filament geometry, rather than rotating only the orbital paths.
@@ -18,10 +174,7 @@ function sourcePoint(x,y,z){
 }
 // Translucent, frequency-modulated living source: layered vibrating filaments.
 const coreRadius=Math.max(15,25*c.scale);targets.push({i:-1,x:c.x,y:c.y,r:Math.max(23,coreRadius*1.13),source:true});
-const aura=ctx.createRadialGradient(c.x,c.y,coreRadius*.1,c.x,c.y,coreRadius*3.7);
-aura.addColorStop(0,'rgba(177,204,221,.20)');aura.addColorStop(.34,'rgba(126,164,190,.065)');aura.addColorStop(1,'rgba(211,173,124,0)');
-ctx.fillStyle=aura;ctx.beginPath();ctx.arc(c.x,c.y,coreRadius*3.7,0,Math.PI*2);ctx.fill();
-ctx.save();ctx.globalCompositeOperation='screen';
+ctx.save();ctx.globalCompositeOperation='source-over';
 // Latitude loops are true rotating 3D curves, seen through a translucent membrane.
 const close=zoom>3, nLat=close?42:21, nMer=close?108:48;
 for(let layer=0;layer<nLat;layer++){
@@ -34,7 +187,7 @@ for(let layer=0;layer<nLat;layer++){
     const p=sourcePoint(rr*Math.cos(lat)*Math.cos(lon),rr*Math.sin(lat),rr*Math.cos(lat)*Math.sin(lon));
     if(j===0)ctx.moveTo(p[0],p[1]);else ctx.lineTo(p[0],p[1]);
   }
-  ctx.strokeStyle='rgba(190,219,237,.092)';ctx.lineWidth=.5;ctx.stroke();
+  ctx.strokeStyle='rgba(54,65,72,.25)';ctx.lineWidth=.62;ctx.stroke();
 }
 for(let k=0;k<nMer;k++){
   const lon=k/nMer*Math.PI*2+now*.015;
@@ -46,24 +199,21 @@ for(let k=0;k<nMer;k++){
     const p=sourcePoint(rr*Math.cos(lat)*Math.cos(lon),rr*Math.sin(lat),rr*Math.cos(lat)*Math.sin(lon));
     if(j===0)ctx.moveTo(p[0],p[1]);else ctx.lineTo(p[0],p[1]);
   }
-  ctx.strokeStyle=`rgba(202,229,244,${k%7===0?.17:.05})`;ctx.lineWidth=k%7===0?.75:.4;ctx.stroke();
+  ctx.strokeStyle=`rgba(58,53,47,${k%7===0?.40:.15})`;ctx.lineWidth=k%7===0?.82:.53;ctx.stroke();
 }
 // Nodes occupy positions in 3D; front-facing nodes are slightly brighter.
 for(let k=0;k<(close?260:75);k++){
   const n=close?260:75, lon=k*2.39996+now*.017,lat=Math.asin(-1+2*(k+.5)/n);
   const rr=coreRadius*(1+.055*Math.sin(k*1.8+now*.29));
   const p=sourcePoint(rr*Math.cos(lat)*Math.cos(lon),rr*Math.sin(lat),rr*Math.cos(lat)*Math.sin(lon));
-  ctx.fillStyle=`rgba(219,239,250,${p[2]>0?.35:.14})`;
+  ctx.fillStyle=`rgba(58,53,47,${p[2]>0?.65:.30})`;
   ctx.beginPath();ctx.arc(p[0],p[1],k%9===0?1.05:.5,0,Math.PI*2);ctx.fill();
 }
-const coreGlow=ctx.createRadialGradient(c.x-coreRadius*.18,c.y-coreRadius*.2,0,c.x,c.y,coreRadius*1.15);
-coreGlow.addColorStop(0,'rgba(231,245,250,.29)');coreGlow.addColorStop(.45,'rgba(170,207,226,.095)');coreGlow.addColorStop(1,'rgba(225,183,127,0)');
-ctx.fillStyle=coreGlow;ctx.beginPath();ctx.arc(c.x,c.y,coreRadius*1.15,0,Math.PI*2);ctx.fill();
 ctx.restore();
 // Fine nested wave interference, visible only as the observer approaches.
 if(zoom>2.3){
   const reveal=Math.min(1,(zoom-2.3)/2.3);
-  ctx.save();ctx.globalCompositeOperation='screen';
+  ctx.save();ctx.globalCompositeOperation='source-over';
   for(let k=0;k<115;k++){
     const lat=-1.45+(k/114)*2.9,phase=k*2.399963;
     ctx.beginPath();
@@ -75,22 +225,17 @@ if(zoom>2.3){
       const x=point[0],y=point[1];
       if(!j)ctx.moveTo(x,y);else ctx.lineTo(x,y);
     }
-    ctx.strokeStyle=`rgba(139,194,225,${.024*reveal})`;
-    ctx.lineWidth=.42;ctx.stroke();
+    ctx.strokeStyle=`rgba(58,53,47,${.09*reveal})`;
+    ctx.lineWidth=.48;ctx.stroke();
   }
   ctx.restore();
 }
-ctx.font='9px monospace';ctx.fillStyle='#b5b7b8';ctx.textAlign='center';if(zoom<4)ctx.fillText('ORIGIN / THOUGHT',c.x,c.y+coreRadius+24);
+ctx.font='9px monospace';ctx.fillStyle='#696258';ctx.textAlign='center';if(zoom<4)ctx.fillText('ORIGIN / THOUGHT',c.x,c.y+coreRadius+24);
 // Small orbiting bodies are living, translucent cousins of the source.
 // Their filaments deform independently; the blue is muted and appears only in the energy.
 function livingBody(x,y,r,seed,lit,behind){
   const R=Math.max(2.3,r*(1+lit*.14)),t=now*.22+seed*3.1;
-  ctx.save();ctx.globalCompositeOperation='screen';
-  const aura=ctx.createRadialGradient(x,y,0,x,y,R*4.4);
-  aura.addColorStop(0,`rgba(166,205,226,${.12+lit*.18})`);
-  aura.addColorStop(.3,`rgba(111,153,181,${.035+lit*.055})`);
-  aura.addColorStop(1,'rgba(105,150,181,0)');
-  ctx.fillStyle=aura;ctx.beginPath();ctx.arc(x,y,R*4.4,0,Math.PI*2);ctx.fill();
+  ctx.save();ctx.globalCompositeOperation='source-over';
   for(let band=0;band<8;band++){
     const lat=(band/7-.5)*1.85;
     ctx.beginPath();
@@ -102,22 +247,22 @@ function livingBody(x,y,r,seed,lit,behind){
       const py=y+Math.sin(lat)*R*.82+Math.sin(a+t*.13)*rr*.33;
       if(j===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
     }
-    ctx.strokeStyle=`rgba(206,232,244,${(behind?.085:.15)+lit*.12})`;
-    ctx.lineWidth=.45;ctx.stroke();
+    ctx.strokeStyle=`rgba(58,53,47,${(behind?.23:.42)+lit*.18})`;
+    ctx.lineWidth=.62;ctx.stroke();
   }
   for(let k=0;k<9;k++){
     const a=k*2.399+t*.4,rr=R*(.35+.52*Math.sin(k*3.2+t*.24)**2);
-    ctx.fillStyle=`rgba(234,245,248,${.24+lit*.32})`;
+    ctx.fillStyle=`rgba(58,53,47,${.42+lit*.35})`;
     ctx.beginPath();ctx.arc(x+Math.cos(a)*rr,y+Math.sin(a)*rr*.76,.45+lit*.3,0,Math.PI*2);ctx.fill();
   }
   ctx.restore();
-  if(lit){ctx.beginPath();ctx.arc(x,y,R+6,0,Math.PI*2);ctx.strokeStyle=`rgba(192,219,234,${.25+lit*.42})`;ctx.lineWidth=.65;ctx.stroke()}
+  if(lit){ctx.beginPath();ctx.arc(x,y,R+6,0,Math.PI*2);ctx.strokeStyle=`rgba(75,105,126,${.28+lit*.42})`;ctx.lineWidth=.65;ctx.stroke()}
 }
 ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,(5.5-zoom)/2.5));entries.forEach((o,i)=>{
-  let phases=i===0?advisoryPhases:[0];
+  let phases=[0];
   phases.forEach((ph,j)=>{
     let p=orbitPoint(o.r,o.phase+now*o.speed+ph,i),rad=o.size*p.scale;
-    targets.push({i,x:p.x,y:p.y,r:Math.max(19,rad*3),z:p.z});
+    targets.push({i,x:p.x,y:p.y,r:Math.max(27,rad*3),z:p.z});
     livingBody(p.x,p.y,rad,i*3+j,light[i],p.z<0);
   });
 });
@@ -147,20 +292,45 @@ if(selected===-1){
   const lineY=Math.max(65,Math.min(H-(expanded?(compact?155:195):70),p.y-r*.35-24));
   const anchorX=side===1?textX-8:textX+labelWidth+8;
   const elbowX=side===1?anchorX-21:anchorX+21;
-  ctx.strokeStyle='#b8c5cc';ctx.lineWidth=.8;ctx.beginPath();
+  ctx.strokeStyle='#61594e';ctx.lineWidth=.8;ctx.beginPath();
   ctx.moveTo(p.x+side*Math.min(r*.85,Math.max(8,Math.abs(elbowX-p.x)*.5)),p.y-r*.22);
   ctx.lineTo(elbowX,lineY);ctx.lineTo(anchorX,lineY);ctx.stroke();
-  ctx.textAlign='left';ctx.fillStyle='#e9dfcf';ctx.font='10px monospace';
+  ctx.textAlign='left';ctx.fillStyle='#39352e';ctx.font='10px monospace';
   ctx.fillText('00 / THE SOURCE',textX,lineY-9);
-  ctx.fillStyle='#a8b9c3';ctx.font=compact?'8px monospace':'9px monospace';
+  ctx.fillStyle='#6e665b';ctx.font=compact?'8px monospace':'9px monospace';
   ctx.fillText('A LIVING SYSTEM OF THOUGHT',textX,lineY+15);
   if(expanded){
-    ctx.font=compact?'9px monospace':'10px monospace';ctx.fillStyle='#b9b9b5';
+    ctx.font=compact?'9px monospace':'10px monospace';ctx.fillStyle='#696258';
     lines.forEach((line,j)=>ctx.fillText(line,textX,lineY+38+j*17));
   }
   // A rectangular hit target covers the visible annotation, not an offscreen phantom point.
   targets.push({i:-1,x:textX+labelWidth/2,y:lineY+(expanded?55:0),r:Math.max(labelWidth*.52,compact?105:155),annotation:true});
-}else if(zoom<3.8){let o=entries[selected],p=orbitPoint(o.r,o.phase+now*o.speed+(selected===0?advisoryPhases[0]:0),selected);let side=p.x>W*.58?-1:1;let ax=p.x+side*24,ay=p.y-24,bx=ax+side*Math.min(104,W*.24);ctx.strokeStyle='#c1cbd0';ctx.lineWidth=.85;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(ax,ay);ctx.lineTo(bx,ay);ctx.stroke();ctx.textAlign=side===1?'left':'right';ctx.fillStyle='#e9dfcf';ctx.font='10px monospace';ctx.fillText(o.id+' / '+o.name,bx,ay-9);ctx.fillStyle='#aaa59b';ctx.font='9px monospace';ctx.fillText(o.price,bx,ay+15);targets.push({i:selected,x:bx-side*35,y:ay-6,r:65,annotation:true});if(expanded){const d=document.getElementById('detail');if(W>600){d.style.left=Math.max(15,Math.min(W-300,bx+(side===1?8:-290)))+'px';d.style.top=Math.max(70,Math.min(H-270,ay+30))+'px'}} }requestAnimationFrame(render)}requestAnimationFrame(render);
-function select(i,open=false){if(i===selected&&open){expanded=!expanded}else{selected=i;expanded=false}const d=document.getElementById('detail');d.classList.toggle('source-detail',selected===-1);if(selected===-1){d.classList.remove('open');document.getElementById('detailId').textContent='00 / THE SOURCE';document.getElementById('detailTitle').textContent='A living system of thought.';document.getElementById('description').textContent='A human being, continuously shaped by experience, curiosity, relationships, and the ideas he encounters.\n\nNothing here exists independently. Every conversation, every experience, every relationship changes something. Ideas emerge, collide, evolve, and sometimes disappear.\n\nWhat you see orbiting this source are different ways of engaging with that process. Some closer, some further away. Each with a different degree of access, exchange, and influence.\n\nThe source itself is never finished.';if(W>600){d.style.left=Math.min(W-390,Math.max(20,W*.5+Math.max(45,25*project(0,0,0).scale)+35))+'px';d.style.top=Math.max(65,H*.5-145)+'px'}return;}const o=entries[selected];d.classList.toggle('open',expanded);document.getElementById('detailId').textContent='OBJECT / '+o.id;document.getElementById('detailTitle').textContent=o.name;for(let k of ['price','access','proximity'])document.getElementById(k).textContent=o[k];document.getElementById('release').textContent=o.release;document.getElementById('description').textContent=o.description;let link=document.getElementById('destination');link.textContent=o.url?(selected===4?'OPEN INSTAGRAM ↗':'VISIT WEBSITE ↗'):'DESTINATION / COMING SOON ↗';link.setAttribute('aria-disabled',o.url?'false':'true');link.href=o.url||'#';link.target=o.url?'_blank':'_self';link.rel='noopener noreferrer'}document.getElementById('close').onclick=()=>{expanded=false;document.getElementById('detail').classList.remove('open')};
-canvas.addEventListener('pointerdown',e=>{drag=true;downX=lastX=e.clientX;downY=lastY=e.clientY;canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!drag){let hit=targets.some(t=>Math.hypot(t.x-e.clientX,t.y-e.clientY)<t.r);canvas.style.cursor=hit?'pointer':'grab';return;}let dx=e.clientX-lastX,dy=e.clientY-lastY;if(Math.abs(e.clientX-downX)+Math.abs(e.clientY-downY)>5){angleY+=dx*.004;angleX=Math.max(-1.25,Math.min(.15,angleX+dy*.004))}lastX=e.clientX;lastY=e.clientY});canvas.addEventListener('pointerup',e=>{drag=false;canvas.style.cursor='grab';if(Math.hypot(e.clientX-downX,e.clientY-downY)>9)return;let hits=targets.map(t=>({...t,dist:Math.hypot(t.x-e.clientX,t.y-e.clientY)})).filter(t=>t.dist<t.r).sort((a,b)=>(a.source?-1:0)-(b.source?-1:0)||a.dist-b.dist);if(hits.length)select(hits[0].i,true)});canvas.style.cursor='grab';function setZoom(v){zoom=Math.max(.55,Math.min(9,v))}document.getElementById('focusSource').onclick=()=>{setZoom(7);select(-1,false)};document.getElementById('zoomIn').onclick=()=>setZoom(zoom*1.2);document.getElementById('zoomOut').onclick=()=>setZoom(zoom/1.2);document.getElementById('resetView').onclick=()=>{zoom=1;angleX=-.47;angleY=-.24};canvas.addEventListener('wheel',e=>{e.preventDefault();setZoom(zoom*Math.exp(-e.deltaY*.001))},{passive:false});let pointers=new Map(),pinchDistance=null;canvas.addEventListener('pointerdown',e=>{pointers.set(e.pointerId,[e.clientX,e.clientY]);if(pointers.size===2){const a=[...pointers.values()];pinchDistance=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1])}});canvas.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,[e.clientX,e.clientY]);if(pointers.size===2){const a=[...pointers.values()],d=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);if(pinchDistance)setZoom(zoom*d/pinchDistance);pinchDistance=d;drag=false}});for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>{pointers.delete(e.pointerId);if(pointers.size<2)pinchDistance=null});document.addEventListener('keydown',e=>{if(e.key==='Escape'){expanded=false;document.getElementById('detail').classList.remove('open')}if(e.key===' '){paused=!paused;e.preventDefault()}});select(1);
+}else if(selected>=0&&zoom<3.8){let o=entries[selected],p=orbitPoint(o.r,o.phase+now*o.speed,selected);let side=p.x>W*.58?-1:1;let ax=p.x+side*24,ay=p.y-24,bx=ax+side*Math.min(104,W*.24);ctx.strokeStyle='#655d52';ctx.lineWidth=.85;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(ax,ay);ctx.lineTo(bx,ay);ctx.stroke();ctx.textAlign=side===1?'left':'right';ctx.fillStyle='#39352e';ctx.font='10px monospace';ctx.fillText(o.id+' / '+o.name,bx,ay-9);ctx.fillStyle='#776d60';ctx.font='9px monospace';ctx.fillText(o.tagline||'',bx,ay+15);// Make the full visible two-line annotation clickable, including its label and tagline.
+const labelWidth=Math.max(ctx.measureText(o.id+' / '+o.name).width,ctx.measureText(o.tagline||'').width)+28;
+const labelLeft=side===1?bx-12:bx-labelWidth+12;
+targets.push({i:selected,x:labelLeft+labelWidth/2,y:ay-1,r:65,annotation:true,rect:{left:labelLeft,top:ay-26,right:labelLeft+labelWidth,bottom:ay+29}});if(expanded){const d=document.getElementById('detail');if(W>600){d.style.left=Math.max(15,Math.min(W-(selected===1?385:300),bx+(side===1?8:(selected===1?-375:-290))))+'px';d.style.top=Math.max(70,Math.min(H-(selected===1?465:270),ay+30))+'px'}} }requestAnimationFrame(render)}requestAnimationFrame(render);
+function select(i,open=false){if(i===selected&&open){expanded=!expanded}else{selected=i;expanded=false}const d=document.getElementById('detail');d.classList.toggle('source-detail',selected===-1);if(selected===-2){d.classList.remove('open');return;}if(selected===-1){d.classList.remove('open');document.getElementById('detailId').textContent='00 / THE SOURCE';document.getElementById('detailTitle').textContent='A living system of thought.';document.getElementById('description').textContent='A human being, continuously shaped by experience, curiosity, relationships, and the ideas he encounters.\n\nNothing here exists independently. Every conversation, every experience, every relationship changes something. Ideas emerge, collide, evolve, and sometimes disappear.\n\nWhat you see orbiting this source are different ways of engaging with that process. Some closer, some further away. Each with a different degree of access, exchange, and influence.\n\nThe source itself is never finished.';if(W>600){d.style.left=Math.min(W-390,Math.max(20,W*.5+Math.max(45,25*project(0,0,0).scale)+35))+'px';d.style.top=Math.max(65,H*.5-145)+'px'}return;}const o=entries[selected];d.classList.toggle('open',expanded);d.classList.toggle('essais-detail',selected===1);document.getElementById('detailId').textContent='OBJECT / '+o.id;document.getElementById('detailTitle').textContent=o.name;for(let k of ['price','access','proximity'])document.getElementById(k).textContent=o[k];document.getElementById('price').innerHTML='<span class="commitment"><span>'+ (o.commitment===0?'FREE':'PAID') +'</span><span class="commitment-dots">'+Array.from({length:4},(_,j)=>'<i class="'+(j<(o.commitment||0)?'filled':'')+'"></i>').join('')+'</span></span>';document.getElementById('release').textContent=o.release;document.getElementById('description').textContent=o.description;let link=document.getElementById('destination');link.textContent=selected===0?'READ THE LETTER ↗':selected===1?'JOIN LES ESSAIS ↗':selected===2?'WATCH THE INTRODUCTION ↗':selected===5?'OPEN INSTAGRAM ↗':o.url?'VISIT WEBSITE ↗':'APPLICATION / COMING SOON';const destinationUrl=selected===1?'https://buy.stripe.com/6oUbJ13QGfrkbVe1Mk5Rm02':o.url;link.hidden=selected===3;link.setAttribute('aria-disabled',(selected===0||destinationUrl)?'false':'true');link.href=selected===0?'#advisoryLetter':destinationUrl||'#';link.target=destinationUrl?'_blank':'_self';link.rel='noopener noreferrer';document.getElementById('booksLinks').hidden=selected!==3}const advisoryLetter=document.getElementById('advisoryLetter');
+const advisoryOpen=()=>{advisoryLetter.classList.add('open');advisoryLetter.setAttribute('aria-hidden','false');advisoryLetter.scrollTop=0;document.getElementById('advisoryClose').focus()};
+const advisoryClose=()=>{advisoryLetter.classList.remove('open');advisoryLetter.setAttribute('aria-hidden','true');document.getElementById('destination').focus()};
+document.getElementById('destination').addEventListener('click',e=>{if(selected===0){e.preventDefault();advisoryOpen()}});
+document.getElementById('advisoryClose').addEventListener('click',advisoryClose);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&advisoryLetter.classList.contains('open'))advisoryClose()});
+document.getElementById('advisoryCopy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText('benoit.malige@gmail.com');document.getElementById('advisoryCopy').textContent='COPIED ✓'}catch(e){document.getElementById('advisoryCopy').textContent='SELECT ADDRESS ABOVE'}});
+document.getElementById('close').onclick=()=>{expanded=false;document.getElementById('detail').classList.remove('open')};
+canvas.addEventListener('pointerdown',e=>{drag=true;downX=lastX=e.clientX;downY=lastY=e.clientY;canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!drag){let hit=targets.filter(t=>(Math.hypot(t.x-e.clientX,t.y-e.clientY)<t.r||(t.rect&&e.clientX>=t.rect.left&&e.clientX<=t.rect.right&&e.clientY>=t.rect.top&&e.clientY<=t.rect.bottom))).sort((a,b)=>Math.hypot(a.x-e.clientX,a.y-e.clientY)-Math.hypot(b.x-e.clientX,b.y-e.clientY))[0];hover=hit&&hit.i>=0?hit.i:-1;canvas.style.cursor=hit?'pointer':'grab';return;}let dx=e.clientX-lastX,dy=e.clientY-lastY;if(Math.abs(e.clientX-downX)+Math.abs(e.clientY-downY)>5){angleY+=dx*.004;angleX=Math.max(-1.25,Math.min(.15,angleX+dy*.004))}lastX=e.clientX;lastY=e.clientY});canvas.addEventListener('pointerup',e=>{drag=false;canvas.style.cursor='grab';if(Math.hypot(e.clientX-downX,e.clientY-downY)>9)return;let hits=targets.map(t=>({...t,dist:Math.hypot(t.x-e.clientX,t.y-e.clientY)})).filter(t=>t.dist<t.r||(t.rect&&e.clientX>=t.rect.left&&e.clientX<=t.rect.right&&e.clientY>=t.rect.top&&e.clientY<=t.rect.bottom)).sort((a,b)=>(a.source?-1:0)-(b.source?-1:0)||a.dist-b.dist);if(hits.length)select(hits[0].i,true)});canvas.style.cursor='grab';function setZoom(v){zoom=Math.max(.55,Math.min(9,v))}document.getElementById('focusSource').onclick=()=>{setZoom(7);select(-1,false)};document.getElementById('zoomIn').onclick=()=>setZoom(zoom*1.2);document.getElementById('zoomOut').onclick=()=>setZoom(zoom/1.2);document.getElementById('resetView').onclick=()=>{zoom=1;angleX=-.47;angleY=-.24};canvas.addEventListener('wheel',e=>{e.preventDefault();setZoom(zoom*Math.exp(-e.deltaY*.001))},{passive:false});let pointers=new Map(),pinchDistance=null;canvas.addEventListener('pointerdown',e=>{pointers.set(e.pointerId,[e.clientX,e.clientY]);if(pointers.size===2){const a=[...pointers.values()];pinchDistance=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1])}});canvas.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,[e.clientX,e.clientY]);if(pointers.size===2){const a=[...pointers.values()],d=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);if(pinchDistance)setZoom(zoom*d/pinchDistance);pinchDistance=d;drag=false}});for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>{pointers.delete(e.pointerId);if(pointers.size<2)pinchDistance=null});document.addEventListener('keydown',e=>{if(e.key==='Escape'){expanded=false;document.getElementById('detail').classList.remove('open')}if(e.key===' '){paused=!paused;e.preventDefault()}});select(-2);
+
+const introEl=document.getElementById('intro');
+function closeIntro(){introEl.classList.add('hidden')}
+function openIntro(){introEl.classList.remove('hidden')}
+document.getElementById('introClose').addEventListener('click',closeIntro);
+document.getElementById('introExplore').addEventListener('click',closeIntro);
+document.getElementById('introReopen').addEventListener('click',openIntro);
+canvas.addEventListener('pointerdown',closeIntro);
+canvas.addEventListener('wheel',closeIntro,{passive:true});
+for(const id of ['zoomIn','zoomOut','focusSource','resetView'])document.getElementById(id).addEventListener('click',closeIntro);
+
+// Preview interaction. No server, shared vote count, or Notion credentials are exposed.
+(()=>{const trigger=document.getElementById('thoughtTrigger'),panel=document.getElementById('thoughtPanel'),close=document.getElementById('thoughtClose');function setOpen(open){panel.classList.toggle('open',open);panel.setAttribute('aria-hidden',String(!open));trigger.setAttribute('aria-expanded',String(open));if(open){panel.scrollTop=0;close.focus()}else trigger.focus()}trigger.addEventListener('click',()=>setOpen(!panel.classList.contains('open')));close.addEventListener('click',()=>setOpen(false));panel.querySelectorAll('.thought-item').forEach(item=>item.addEventListener('toggle',()=>{if(item.open)panel.querySelectorAll('.thought-item').forEach(other=>{if(other!==item)other.open=false})}));panel.querySelectorAll('.thought-vote').forEach(button=>{const key='pt-thought-'+button.dataset.thought+'-interest';let active=false;try{active=localStorage.getItem(key)==='yes'}catch(e){}function paint(){button.setAttribute('aria-pressed',String(active));button.querySelector('.vote-label').textContent=active?'CURIOSITY NOTED · UNDO':'CURIOUS'}button.addEventListener('click',()=>{active=!active;try{localStorage.setItem(key,active?'yes':'no')}catch(e){}paint()});paint()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&panel.classList.contains('open'))setOpen(false)})})();
+
+(()=>{const trigger=document.getElementById('thoughtTrigger');const panel=document.getElementById('thoughtPanel');const detail=document.getElementById('detail');const intro=document.getElementById('intro');function sync(){const otherOpen=detail?.classList.contains('open')||(intro && getComputedStyle(intro).display!=='none' && getComputedStyle(intro).visibility!=='hidden' && getComputedStyle(intro).opacity!=='0');trigger.style.opacity=otherOpen?'0':'1';trigger.style.pointerEvents=otherOpen?'none':'auto';if(otherOpen&&panel.classList.contains('open')){panel.classList.remove('open');panel.setAttribute('aria-hidden','true');trigger.setAttribute('aria-expanded','false')}}new MutationObserver(sync).observe(detail,{attributes:true,attributeFilter:['class']});if(intro)new MutationObserver(sync).observe(intro,{attributes:true,attributeFilter:['class','style']});sync()})();
 </script></body></html>
