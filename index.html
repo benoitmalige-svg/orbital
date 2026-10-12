@@ -1,0 +1,166 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Proximity to Thought — Prototype</title><style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#090b0d;color:#e8e4dc;font-family:Arial,Helvetica,sans-serif;overflow:hidden}.top{position:absolute;z-index:3;top:28px;left:5%;right:5%;display:flex;justify-content:space-between;font:10px monospace;letter-spacing:2px;color:#898a89}.scene{position:absolute;inset:0;width:100%;height:100%;touch-action:none}.bottom{position:absolute;bottom:27px;left:5%;right:5%;display:flex;justify-content:space-between;gap:15px;font:10px monospace;letter-spacing:1px;color:#777b7d;pointer-events:none}.detail{position:absolute;z-index:4;width:min(285px,78vw);padding:18px 19px;background:rgba(13,15,17,.95);border:1px solid #56534c;box-shadow:0 12px 45px #0008;opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .32s ease,transform .32s ease,visibility .32s;pointer-events:none}.detail.open{opacity:1;visibility:visible;transform:translateY(0);pointer-events:auto}.detail .k{font:9px monospace;letter-spacing:2px;color:#b9a88d}.detail h2{font-size:16px;font-weight:400;letter-spacing:1px;margin:12px 0 17px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:14px}.stats label{display:block;color:#777b7e;font:9px monospace;letter-spacing:1px;margin-bottom:5px}.stats span{font-size:11px}.detail p{font-size:12px;line-height:1.7;color:#bcbab4;margin:20px 0 0}.close{position:absolute;right:13px;top:12px;color:#aaa;background:none;border:0;cursor:pointer;font-size:18px}.hint{position:absolute;bottom:65px;left:50%;transform:translateX(-50%);font:10px monospace;color:#8d8e8d;letter-spacing:1px;white-space:nowrap;pointer-events:none}@media(max-width:600px){.top{top:20px}.bottom{bottom:19px;font-size:8px}.detail{bottom:85px!important;top:auto!important;left:50%!important;transform:translateX(-50%) translateY(8px)}.detail.open{transform:translateX(-50%) translateY(0)}.hint{bottom:49px;font-size:9px}}
+.zoom{position:absolute;right:5%;bottom:85px;z-index:5;display:flex;flex-direction:column;gap:7px}.zoom button{width:34px;height:34px;background:#111417;border:1px solid #55544f;color:#ddd4c6;cursor:pointer;font-size:19px}.detail.source-detail{width:min(285px,78vw);border-color:#56534c}.detail.source-detail .stats,.detail.source-detail #destination{display:none}.detail.source-detail p{font-size:12px;line-height:1.85;white-space:pre-line}.detail.source-detail h2{margin-bottom:8px}.detail a{display:inline-block;margin-top:16px;color:#e4cda7;font:10px monospace;letter-spacing:1px;text-decoration:none;border-bottom:1px solid #8d7759;padding-bottom:5px}.detail a[aria-disabled="true"]{opacity:.45;pointer-events:none}@media(max-width:600px){.zoom{right:4%;bottom:95px}} </style></head><body><div class="top"><span>FIG. 001 / PROXIMITY TO THOUGHT · V11</span><span>LAISSEZ-FAIRE</span></div><canvas id="scene" class="scene"></canvas><div id="detail" class="detail"><button class="close" id="close" aria-label="Close">×</button><div class="k" id="detailId"></div><h2 id="detailTitle"></h2><div class="stats"><div><label>PRICE</label><span id="price"></span></div><div><label>ACCESS</label><span id="access"></span></div><div><label>PROXIMITY</label><span id="proximity"></span></div><div><label>RELEASE</label><span id="release"></span></div></div><p id="description"></p><a id="destination" href="#" aria-disabled="true">DESTINATION / COMING SOON ↗</a></div><div class="zoom"><button id="zoomIn" aria-label="Zoom in">+</button><button id="zoomOut" aria-label="Zoom out">−</button><button id="focusSource" aria-label="Examine the source" title="Examine source" style="font-size:15px">◎</button><button id="resetView" aria-label="Reset view" style="font-size:12px">⌖</button></div><div class="hint">SELECT AN OBJECT OR THE SOURCE · ◎ TO ZOOM</div><div class="bottom"><span>SOURCE / 00</span><span>DRAG TO ORBIT · PINCH TO ZOOM · ◎ SOURCE CLOSE-UP</span><span>AN EXPERIMENT IN RELATION</span></div><script>
+const canvas=document.getElementById('scene'),ctx=canvas.getContext('2d');let W,H,dpr,angleX=-.47,angleY=-.24,drag=false,lastX=0,lastY=0,downX=0,downY=0,selected=1,hover=-1,zoom=1,expanded=false,now=0,paused=matchMedia('(prefers-reduced-motion: reduce)').matches,light=[0,0,0,0,0];const entries=[{id:'01',name:'ADVISORY BOARD',url:'https://advisory.benoitmalige.com',price:'$5,000 / MONTH',access:'DIRECT',proximity:'01 / 05',release:'IN CONVERSATION',description:'Three seats at the table. A private relationship built around direct access to my thinking, experience and perspective.',r:77,speed:.085,phase:.8,size:4.8},{id:'02',name:'LES ESSAIS',price:'$49 / MONTH',access:'PRIVATE · MONTHLY',proximity:'02 / 05',release:'2–13 MONTHS EARLY',description:'An unpublished physical essay delivered to your home each month. The ideas are shared privately before their eventual public release.',r:130,speed:.057,phase:2.2,size:6.5},{id:'03',name:'BOOKS',url:'https://identity-tax.benoitmalige.com',price:'PER EDITION',access:'PUBLIC',proximity:'03 / 05',release:'COLLECTED EDITIONS',description:'Ideas gathered, developed, and published for anyone to read. A growing archive of thought.',r:186,speed:.039,phase:5.4,size:5.4},{id:'04',name:'NEWSLETTER',url:'https://benoitmalige.com',price:'FREE',access:'WEEKLY-ISH',proximity:'04 / 05',release:'ONGOING',description:'Notes, questions and discoveries shared directly by email.',r:245,speed:.027,phase:3.8,size:4.5},{id:'05',name:'PUBLIC CONTENT',url:'https://www.instagram.com/benoit_malige/',price:'FREE',access:'OPEN',proximity:'05 / 05',release:'ONGOING',description:'Videos, observations and experiments shared freely with the world.',r:306,speed:.019,phase:1.9,size:4}];const advisoryPhases=[0,2.094,4.189];let targets=[];
+function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
+function project(x,y,z){let driftX=(Math.sin(now*.16)*24+Math.sin(now*.073+1.7)*13)*(W<600?.6:1),driftY=(Math.cos(now*.13+.4)*18+Math.sin(now*.059)*11)*(H<600?.6:1);let cy=Math.cos(angleY),sy=Math.sin(angleY),cx=Math.cos(angleX),sx=Math.sin(angleX);let xx=x*cy+z*sy,zz=-x*sy+z*cy,yy=y*cx-zz*sx,depth=y*sx+zz*cx;let scale=Math.min(W/790,H/730,1.28)*zoom;let perspective=740/(740+depth*.66);return{x:W*.5+driftX+xx*scale*perspective,y:H*.51+driftY+yy*scale*perspective,z:depth,scale:scale*perspective}}
+function orbitPoint(r,a,i){let tilt=i*.12;return project(Math.cos(a)*r,Math.sin(a)*r*Math.sin(tilt),Math.sin(a)*r*Math.cos(tilt))}
+function render(ts){let dt=Math.min((ts-(render.prev||ts))/1000,.05);render.prev=ts;if(!paused)now+=dt;ctx.clearRect(0,0,W,H);ctx.fillStyle='#090b0d';ctx.fillRect(0,0,W,H);let c=project(0,0,0);let glow=ctx.createRadialGradient(c.x,c.y,0,c.x,c.y,Math.min(W,H)*.23);glow.addColorStop(0,'rgba(157,183,204,.15)');glow.addColorStop(.3,'rgba(105,140,166,.05)');glow.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=glow;ctx.beginPath();ctx.arc(c.x,c.y,Math.min(W,H)*.23,0,Math.PI*2);ctx.fill();targets=[];
+ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,(5.5-zoom)/2.5));entries.forEach((o,i)=>{light[i]+=(Number(i===selected)-light[i])*Math.min(1,dt*3.8);for(let layer=0;layer<2;layer++){ctx.beginPath();let drawing=false;for(let j=0;j<=420;j++){let a=j/420*Math.PI*2,p=orbitPoint(o.r,a,i),front=p.z>=0;if(front===(layer===1)){if(!drawing)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);drawing=true}else drawing=false}ctx.strokeStyle=layer===0?`rgba(118,124,132,${.12+light[i]*.20})`:`rgba(154,160,166,${.25+light[i]*.65})`;ctx.lineWidth=.6+light[i]*.65;ctx.stroke()}});
+ctx.restore();
+// Source has its own spatial orientation. Dragging the view now reveals different
+// sides of its filament geometry, rather than rotating only the orbital paths.
+function sourcePoint(x,y,z){
+  const spin=now*.038, a=angleY+spin, b=angleX;
+  const xx=x*Math.cos(a)+z*Math.sin(a), zz=-x*Math.sin(a)+z*Math.cos(a);
+  const yy=y*Math.cos(b)-zz*Math.sin(b), depth=y*Math.sin(b)+zz*Math.cos(b);
+  return [c.x+xx,c.y+yy,depth];
+}
+// Translucent, frequency-modulated living source: layered vibrating filaments.
+const coreRadius=Math.max(15,25*c.scale);targets.push({i:-1,x:c.x,y:c.y,r:Math.max(23,coreRadius*1.13),source:true});
+const aura=ctx.createRadialGradient(c.x,c.y,coreRadius*.1,c.x,c.y,coreRadius*3.7);
+aura.addColorStop(0,'rgba(177,204,221,.20)');aura.addColorStop(.34,'rgba(126,164,190,.065)');aura.addColorStop(1,'rgba(211,173,124,0)');
+ctx.fillStyle=aura;ctx.beginPath();ctx.arc(c.x,c.y,coreRadius*3.7,0,Math.PI*2);ctx.fill();
+ctx.save();ctx.globalCompositeOperation='screen';
+// Latitude loops are true rotating 3D curves, seen through a translucent membrane.
+const close=zoom>3, nLat=close?42:21, nMer=close?108:48;
+for(let layer=0;layer<nLat;layer++){
+  const lat=-Math.PI/2+(layer+.5)/nLat*Math.PI;
+  ctx.beginPath();
+  for(let j=0;j<=220;j++){
+    const lon=j/220*Math.PI*2;
+    const interference=1+.065*Math.sin(lon*7+lat*4+now*.37)+.035*Math.sin(lon*13-lat*8-now*.23);
+    const rr=coreRadius*interference;
+    const p=sourcePoint(rr*Math.cos(lat)*Math.cos(lon),rr*Math.sin(lat),rr*Math.cos(lat)*Math.sin(lon));
+    if(j===0)ctx.moveTo(p[0],p[1]);else ctx.lineTo(p[0],p[1]);
+  }
+  ctx.strokeStyle='rgba(190,219,237,.092)';ctx.lineWidth=.5;ctx.stroke();
+}
+for(let k=0;k<nMer;k++){
+  const lon=k/nMer*Math.PI*2+now*.015;
+  ctx.beginPath();
+  for(let j=0;j<=125;j++){
+    const lat=-Math.PI/2+j/125*Math.PI;
+    const wave=1+.09*Math.sin(lat*8+lon*5+now*.27)+.045*Math.sin(lat*17-lon*4-now*.19);
+    const rr=coreRadius*wave;
+    const p=sourcePoint(rr*Math.cos(lat)*Math.cos(lon),rr*Math.sin(lat),rr*Math.cos(lat)*Math.sin(lon));
+    if(j===0)ctx.moveTo(p[0],p[1]);else ctx.lineTo(p[0],p[1]);
+  }
+  ctx.strokeStyle=`rgba(202,229,244,${k%7===0?.17:.05})`;ctx.lineWidth=k%7===0?.75:.4;ctx.stroke();
+}
+// Nodes occupy positions in 3D; front-facing nodes are slightly brighter.
+for(let k=0;k<(close?260:75);k++){
+  const n=close?260:75, lon=k*2.39996+now*.017,lat=Math.asin(-1+2*(k+.5)/n);
+  const rr=coreRadius*(1+.055*Math.sin(k*1.8+now*.29));
+  const p=sourcePoint(rr*Math.cos(lat)*Math.cos(lon),rr*Math.sin(lat),rr*Math.cos(lat)*Math.sin(lon));
+  ctx.fillStyle=`rgba(219,239,250,${p[2]>0?.35:.14})`;
+  ctx.beginPath();ctx.arc(p[0],p[1],k%9===0?1.05:.5,0,Math.PI*2);ctx.fill();
+}
+const coreGlow=ctx.createRadialGradient(c.x-coreRadius*.18,c.y-coreRadius*.2,0,c.x,c.y,coreRadius*1.15);
+coreGlow.addColorStop(0,'rgba(231,245,250,.29)');coreGlow.addColorStop(.45,'rgba(170,207,226,.095)');coreGlow.addColorStop(1,'rgba(225,183,127,0)');
+ctx.fillStyle=coreGlow;ctx.beginPath();ctx.arc(c.x,c.y,coreRadius*1.15,0,Math.PI*2);ctx.fill();
+ctx.restore();
+// Fine nested wave interference, visible only as the observer approaches.
+if(zoom>2.3){
+  const reveal=Math.min(1,(zoom-2.3)/2.3);
+  ctx.save();ctx.globalCompositeOperation='screen';
+  for(let k=0;k<115;k++){
+    const lat=-1.45+(k/114)*2.9,phase=k*2.399963;
+    ctx.beginPath();
+    for(let j=0;j<=110;j++){
+      const u=j/110*Math.PI*2;
+      const wave=1+.036*Math.sin(u*17+lat*9+now*.4)+.025*Math.sin(u*29-lat*14-now*.27);
+      const rr=coreRadius*Math.cos(lat)*wave;
+      const point=sourcePoint(rr*Math.cos(u+phase*.07),coreRadius*Math.sin(lat)*.86,rr*Math.sin(u+phase*.07));
+      const x=point[0],y=point[1];
+      if(!j)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle=`rgba(139,194,225,${.024*reveal})`;
+    ctx.lineWidth=.42;ctx.stroke();
+  }
+  ctx.restore();
+}
+ctx.font='9px monospace';ctx.fillStyle='#b5b7b8';ctx.textAlign='center';if(zoom<4)ctx.fillText('ORIGIN / THOUGHT',c.x,c.y+coreRadius+24);
+// Small orbiting bodies are living, translucent cousins of the source.
+// Their filaments deform independently; the blue is muted and appears only in the energy.
+function livingBody(x,y,r,seed,lit,behind){
+  const R=Math.max(2.3,r*(1+lit*.14)),t=now*.22+seed*3.1;
+  ctx.save();ctx.globalCompositeOperation='screen';
+  const aura=ctx.createRadialGradient(x,y,0,x,y,R*4.4);
+  aura.addColorStop(0,`rgba(166,205,226,${.12+lit*.18})`);
+  aura.addColorStop(.3,`rgba(111,153,181,${.035+lit*.055})`);
+  aura.addColorStop(1,'rgba(105,150,181,0)');
+  ctx.fillStyle=aura;ctx.beginPath();ctx.arc(x,y,R*4.4,0,Math.PI*2);ctx.fill();
+  for(let band=0;band<8;band++){
+    const lat=(band/7-.5)*1.85;
+    ctx.beginPath();
+    for(let j=0;j<=64;j++){
+      const a=j/64*Math.PI*2;
+      const harmonic=1+.11*Math.sin(a*4+t+lat*3)+.065*Math.sin(a*7-t*.73+seed);
+      const rr=R*Math.cos(lat)*harmonic;
+      const px=x+Math.cos(a+t*.13)*rr;
+      const py=y+Math.sin(lat)*R*.82+Math.sin(a+t*.13)*rr*.33;
+      if(j===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+    }
+    ctx.strokeStyle=`rgba(206,232,244,${(behind?.085:.15)+lit*.12})`;
+    ctx.lineWidth=.45;ctx.stroke();
+  }
+  for(let k=0;k<9;k++){
+    const a=k*2.399+t*.4,rr=R*(.35+.52*Math.sin(k*3.2+t*.24)**2);
+    ctx.fillStyle=`rgba(234,245,248,${.24+lit*.32})`;
+    ctx.beginPath();ctx.arc(x+Math.cos(a)*rr,y+Math.sin(a)*rr*.76,.45+lit*.3,0,Math.PI*2);ctx.fill();
+  }
+  ctx.restore();
+  if(lit){ctx.beginPath();ctx.arc(x,y,R+6,0,Math.PI*2);ctx.strokeStyle=`rgba(192,219,234,${.25+lit*.42})`;ctx.lineWidth=.65;ctx.stroke()}
+}
+ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,(5.5-zoom)/2.5));entries.forEach((o,i)=>{
+  let phases=i===0?advisoryPhases:[0];
+  phases.forEach((ph,j)=>{
+    let p=orbitPoint(o.r,o.phase+now*o.speed+ph,i),rad=o.size*p.scale;
+    targets.push({i,x:p.x,y:p.y,r:Math.max(19,rad*3),z:p.z});
+    livingBody(p.x,p.y,rad,i*3+j,light[i],p.z<0);
+  });
+});
+ctx.restore();
+if(selected===-1){
+  // Screen-aware source annotation: stays entirely visible even at close zoom.
+  const p=project(0,0,0),r=Math.max(15,25*p.scale);
+  const compact=W<680, margin=compact?18:30;
+  const lines=compact?[
+    'Shaped by experience,',
+    'curiosity and relationships.',
+    'Every encounter changes something.',
+    'The source is never finished.'
+  ]:[
+    'A human being shaped by experience,',
+    'curiosity, relationships and ideas.',
+    'Conversations and encounters change it.',
+    'Ideas emerge, collide and evolve.',
+    'The surrounding orbits are different',
+    'ways of engaging with that process.',
+    'The source itself is never finished.'
+  ];
+  const labelWidth=compact?204:294;
+  const rightSpace=W-(p.x+r)-margin, leftSpace=p.x-r-margin;
+  const side=rightSpace>=labelWidth+25?1:leftSpace>=labelWidth+25?-1:(rightSpace>=leftSpace?1:-1);
+  const textX=side===1?Math.min(W-margin-labelWidth,Math.max(margin,p.x+r+36)):Math.max(margin,Math.min(W-margin-labelWidth,p.x-r-36-labelWidth));
+  const lineY=Math.max(65,Math.min(H-(expanded?(compact?155:195):70),p.y-r*.35-24));
+  const anchorX=side===1?textX-8:textX+labelWidth+8;
+  const elbowX=side===1?anchorX-21:anchorX+21;
+  ctx.strokeStyle='#b8c5cc';ctx.lineWidth=.8;ctx.beginPath();
+  ctx.moveTo(p.x+side*Math.min(r*.85,Math.max(8,Math.abs(elbowX-p.x)*.5)),p.y-r*.22);
+  ctx.lineTo(elbowX,lineY);ctx.lineTo(anchorX,lineY);ctx.stroke();
+  ctx.textAlign='left';ctx.fillStyle='#e9dfcf';ctx.font='10px monospace';
+  ctx.fillText('00 / THE SOURCE',textX,lineY-9);
+  ctx.fillStyle='#a8b9c3';ctx.font=compact?'8px monospace':'9px monospace';
+  ctx.fillText('A LIVING SYSTEM OF THOUGHT',textX,lineY+15);
+  if(expanded){
+    ctx.font=compact?'9px monospace':'10px monospace';ctx.fillStyle='#b9b9b5';
+    lines.forEach((line,j)=>ctx.fillText(line,textX,lineY+38+j*17));
+  }
+  // A rectangular hit target covers the visible annotation, not an offscreen phantom point.
+  targets.push({i:-1,x:textX+labelWidth/2,y:lineY+(expanded?55:0),r:Math.max(labelWidth*.52,compact?105:155),annotation:true});
+}else if(zoom<3.8){let o=entries[selected],p=orbitPoint(o.r,o.phase+now*o.speed+(selected===0?advisoryPhases[0]:0),selected);let side=p.x>W*.58?-1:1;let ax=p.x+side*24,ay=p.y-24,bx=ax+side*Math.min(104,W*.24);ctx.strokeStyle='#c1cbd0';ctx.lineWidth=.85;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(ax,ay);ctx.lineTo(bx,ay);ctx.stroke();ctx.textAlign=side===1?'left':'right';ctx.fillStyle='#e9dfcf';ctx.font='10px monospace';ctx.fillText(o.id+' / '+o.name,bx,ay-9);ctx.fillStyle='#aaa59b';ctx.font='9px monospace';ctx.fillText(o.price,bx,ay+15);targets.push({i:selected,x:bx-side*35,y:ay-6,r:65,annotation:true});if(expanded){const d=document.getElementById('detail');if(W>600){d.style.left=Math.max(15,Math.min(W-300,bx+(side===1?8:-290)))+'px';d.style.top=Math.max(70,Math.min(H-270,ay+30))+'px'}} }requestAnimationFrame(render)}requestAnimationFrame(render);
+function select(i,open=false){if(i===selected&&open){expanded=!expanded}else{selected=i;expanded=false}const d=document.getElementById('detail');d.classList.toggle('source-detail',selected===-1);if(selected===-1){d.classList.remove('open');document.getElementById('detailId').textContent='00 / THE SOURCE';document.getElementById('detailTitle').textContent='A living system of thought.';document.getElementById('description').textContent='A human being, continuously shaped by experience, curiosity, relationships, and the ideas he encounters.\n\nNothing here exists independently. Every conversation, every experience, every relationship changes something. Ideas emerge, collide, evolve, and sometimes disappear.\n\nWhat you see orbiting this source are different ways of engaging with that process. Some closer, some further away. Each with a different degree of access, exchange, and influence.\n\nThe source itself is never finished.';if(W>600){d.style.left=Math.min(W-390,Math.max(20,W*.5+Math.max(45,25*project(0,0,0).scale)+35))+'px';d.style.top=Math.max(65,H*.5-145)+'px'}return;}const o=entries[selected];d.classList.toggle('open',expanded);document.getElementById('detailId').textContent='OBJECT / '+o.id;document.getElementById('detailTitle').textContent=o.name;for(let k of ['price','access','proximity'])document.getElementById(k).textContent=o[k];document.getElementById('release').textContent=o.release;document.getElementById('description').textContent=o.description;let link=document.getElementById('destination');link.textContent=o.url?(selected===4?'OPEN INSTAGRAM ↗':'VISIT WEBSITE ↗'):'DESTINATION / COMING SOON ↗';link.setAttribute('aria-disabled',o.url?'false':'true');link.href=o.url||'#';link.target=o.url?'_blank':'_self';link.rel='noopener noreferrer'}document.getElementById('close').onclick=()=>{expanded=false;document.getElementById('detail').classList.remove('open')};
+canvas.addEventListener('pointerdown',e=>{drag=true;downX=lastX=e.clientX;downY=lastY=e.clientY;canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!drag){let hit=targets.some(t=>Math.hypot(t.x-e.clientX,t.y-e.clientY)<t.r);canvas.style.cursor=hit?'pointer':'grab';return;}let dx=e.clientX-lastX,dy=e.clientY-lastY;if(Math.abs(e.clientX-downX)+Math.abs(e.clientY-downY)>5){angleY+=dx*.004;angleX=Math.max(-1.25,Math.min(.15,angleX+dy*.004))}lastX=e.clientX;lastY=e.clientY});canvas.addEventListener('pointerup',e=>{drag=false;canvas.style.cursor='grab';if(Math.hypot(e.clientX-downX,e.clientY-downY)>9)return;let hits=targets.map(t=>({...t,dist:Math.hypot(t.x-e.clientX,t.y-e.clientY)})).filter(t=>t.dist<t.r).sort((a,b)=>(a.source?-1:0)-(b.source?-1:0)||a.dist-b.dist);if(hits.length)select(hits[0].i,true)});canvas.style.cursor='grab';function setZoom(v){zoom=Math.max(.55,Math.min(9,v))}document.getElementById('focusSource').onclick=()=>{setZoom(7);select(-1,false)};document.getElementById('zoomIn').onclick=()=>setZoom(zoom*1.2);document.getElementById('zoomOut').onclick=()=>setZoom(zoom/1.2);document.getElementById('resetView').onclick=()=>{zoom=1;angleX=-.47;angleY=-.24};canvas.addEventListener('wheel',e=>{e.preventDefault();setZoom(zoom*Math.exp(-e.deltaY*.001))},{passive:false});let pointers=new Map(),pinchDistance=null;canvas.addEventListener('pointerdown',e=>{pointers.set(e.pointerId,[e.clientX,e.clientY]);if(pointers.size===2){const a=[...pointers.values()];pinchDistance=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1])}});canvas.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,[e.clientX,e.clientY]);if(pointers.size===2){const a=[...pointers.values()],d=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);if(pinchDistance)setZoom(zoom*d/pinchDistance);pinchDistance=d;drag=false}});for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>{pointers.delete(e.pointerId);if(pointers.size<2)pinchDistance=null});document.addEventListener('keydown',e=>{if(e.key==='Escape'){expanded=false;document.getElementById('detail').classList.remove('open')}if(e.key===' '){paused=!paused;e.preventDefault()}});select(1);
+</script></body></html>
