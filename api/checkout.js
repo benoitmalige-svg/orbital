@@ -137,7 +137,7 @@ export default async function handler(req, res) {
     params.append('cancel_url', SITE_URL + '/les-essais/?checkout=cancelled');
 
     const explainer = "Today's payment of $49.00 covers your " + issueLabel + " issue. " +
-      "Starting " + firstRecurringLabel + " 1, and on the 1st of every month after that, " +
+      "Starting " + MONTH_NAMES[firstRecurring.month - 1] + " 1, " + firstRecurring.year + ", and on the 1st of every month after that, " +
       "you will be automatically charged $49.00/month until you cancel. You can cancel anytime.";
     params.append('custom_text[submit][message]', explainer);
 
