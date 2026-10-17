@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>You are subscribed - Les Essais</title>
+<style>
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    max-width: 620px;
+    margin: 90px auto;
+    padding: 0 24px;
+    color: #222;
+    line-height: 1.7;
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 0.5em; }
+  a.button {
+    display: inline-block;
+    margin-top: 28px;
+    padding: 12px 22px;
+    border: 1px solid #222;
+    text-decoration: none;
+    color: #222;
+  }
+  a.button:hover { background: #222; color: #fff; }
+  p.fine { font-size: 0.9rem; color: #555; }
+</style>
+</head>
+<body>
+  <h1>Welcome to the correspondence.</h1>
+  <p>
+    Your $49 payment is confirmed and covers your upcoming issue of Les Essais.
+    Your subscription will then renew automatically at $49/month on the 1st,
+    starting with the date shown at checkout, until you cancel.
+  </p>
+  <p>
+    You can manage or cancel your subscription at any time, including during
+    the period before your first automatic renewal.
+  </p>
+  <a class="button" id="manage-link" href="/les-essais/">Manage my subscription</a>
+  <p class="fine">A confirmation and receipt have been sent to your email.</p>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var sessionId = params.get('session_id');
+      var link = document.getElementById('manage-link');
+      if (sessionId && link) {
+        link.href = '/api/portal?session_id=' + encodeURIComponent(sessionId);
+      }
+    })();
+  </script>
+</body>
+</html>
