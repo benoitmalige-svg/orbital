@@ -8,13 +8,25 @@
 // Uses Stripe's plain REST API via fetch (no npm dependency required).
 // STRIPE_SECRET_KEY must be set as a Vercel environment variable and is
 // never present in any browser-side code.
+//
+// STRIPE_PRODUCT_ID / STRIPE_RECURRING_PRICE_ID can be overridden via env
+// vars (used for test-mode IDs on preview deployments). They default to
+// the live Les Essais product and price.
 
-const PRODUCT_ID = 'prod_VNyKVsDGHS6a0b';
-const RECURRING_PRICE_ID = 'price_1UNCNVGoK2Du26V2DBc8poO5';
+const PRODUCT_ID = process.env.STRIPE_PRODUCT_ID || 'prod_VNyKVsDGHS6a0b';
+const RECURRING_PRICE_ID = process.env.STRIPE_RECURRING_PRICE_ID || 'price_1UNCNVGoK2Du26V2DBc8poO5';
 const ONE_TIME_AMOUNT_CENTS = 4900;
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July',
   'August','September','October','November','December'];
+
+function siteUrlFromRequest(req) {
+  if (process.env.SITE_URL) return process.env.SITE_URL.replace(/\/$/, '');
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  if (!host) return 'https://me.benoitmalige.com';
+  return proto + '://' + host;
+}
 
 function getBusinessNow(timeZone) {
   const fmt = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric' });
@@ -63,12 +75,12 @@ function isoMonth(year, month) {
   return year + '-' + String(month).padStart(2, '0');
 }
 
-async function stripeRequest(path, { method = 'POST', body, secretKey, idempotencyKey } = {}) {
+async function stripeRequest(path, { body, secretKey, idempotencyKey } = {}) {
   const headers = { Authorization: 'Bearer ' + secretKey };
   if (body) headers['Content-Type'] = 'application/x-www-form-urlencoded';
   if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   const resp = await fetch('https://api.stripe.com/v1/' + path, {
-    method,
+    method: 'POST',
     headers,
     body: body ? body.toString() : undefined,
   });
@@ -78,7 +90,7 @@ async function stripeRequest(path, { method = 'POST', body, secretKey, idempoten
 
 export default async function handler(req, res) {
   const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
-  const SITE_URL = (process.env.SITE_URL || 'https://me.benoitmalige.com').replace(/\/$/, '');
+  const SITE_URL = siteUrlFromRequest(req);
   const TIMEZONE = process.env.BUSINESS_TIMEZONE || 'America/New_York';
 
   res.setHeader('Cache-Control', 'no-store');
