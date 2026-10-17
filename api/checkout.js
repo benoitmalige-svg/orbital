@@ -115,7 +115,8 @@ export default async function handler(req, res) {
     params.append('mode', 'subscription');
 
     params.append('line_items[0][price_data][currency]', 'usd');
-    params.append('line_items[0][price_data][product]', PRODUCT_ID);
+    params.append('line_items[0][price_data][product_data][name]', 'Les Essais — Your First Issue');
+    params.append('line_items[0][price_data][product_data][description]', "Your $49 payment covers next month's issue, paid in advance.");
     params.append('line_items[0][price_data][unit_amount]', String(ONE_TIME_AMOUNT_CENTS));
     params.append('line_items[0][quantity]', '1');
 
@@ -136,9 +137,8 @@ export default async function handler(req, res) {
     params.append('success_url', SITE_URL + '/les-essais/success.html?session_id={CHECKOUT_SESSION_ID}');
     params.append('cancel_url', SITE_URL + '/les-essais/?checkout=cancelled');
 
-    const explainer = "Today's payment of $49.00 covers your " + issueLabel + " issue. " +
-      "Starting " + MONTH_NAMES[firstRecurring.month - 1] + " 1, " + firstRecurring.year + ", and on the 1st of every month after that, " +
-      "you will be automatically charged $49.00/month until you cancel. You can cancel anytime.";
+    const explainer = "The period marked \"free\" means no additional payment is due before your next billing date. " +
+      "Your next $49 payment is " + MONTH_NAMES[firstRecurring.month - 1] + " 1, " + firstRecurring.year + ", followed by $49 on the 1st of each month. Cancel anytime.";
     params.append('custom_text[submit][message]', explainer);
 
     const forwarded = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
