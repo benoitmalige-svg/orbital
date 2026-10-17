@@ -7,6 +7,14 @@
 // Stripe appends to success_url). Looks up that session to find the
 // customer, then creates a Billing Portal session and redirects there.
 
+function siteUrlFromRequest(req) {
+  if (process.env.SITE_URL) return process.env.SITE_URL.replace(/\/$/, '');
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  if (!host) return 'https://me.benoitmalige.com';
+  return proto + '://' + host;
+}
+
 async function stripeGet(path, secretKey) {
   const resp = await fetch('https://api.stripe.com/v1/' + path, {
     headers: { Authorization: 'Bearer ' + secretKey },
@@ -30,7 +38,7 @@ async function stripePost(path, body, secretKey) {
 
 export default async function handler(req, res) {
   const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
-  const SITE_URL = (process.env.SITE_URL || 'https://me.benoitmalige.com').replace(/\/$/, '');
+  const SITE_URL = siteUrlFromRequest(req);
   res.setHeader('Cache-Control', 'no-store');
 
   try {
