@@ -2,8 +2,12 @@
 // Creates a Stripe Checkout Session for Les Essais:
 //  - one-time $49 line item for the upcoming issue
 //  - the existing $49/month recurring price
-//  - subscription_data.trial_end set to the 1st of the month two calendar
-//    months after signup, so the first automatic renewal lands on the 1st
+//  - renewals always land on the 1st of the month. Issues ship on the 7th
+//    (CUTOFF_DAY), so the first renewal depends on the signup date:
+//      * 1st-6th: the $49 pays for THIS month's issue. No trial: the
+//        subscription is anchored to the 1st of next month (no proration).
+//      * 7th onward: this month's issue has shipped, so the $49 pays for
+//        NEXT month's issue; trial_end is the 1st of the month after next.
 //
 // Uses Stripe's plain REST API via fetch (no npm dependency required).
 // STRIPE_SECRET_KEY must be set as a Vercel environment variable and is
@@ -17,6 +21,9 @@ const PRODUCT_ID = process.env.STRIPE_PRODUCT_ID || 'prod_VNyKVsDGHS6a0b';
 const RECURRING_PRICE_ID = process.env.STRIPE_RECURRING_PRICE_ID || 'price_1UNCNVGoK2Du26V2DBc8poO5';
 const ONE_TIME_AMOUNT_CENTS = 4900;
 
+// Day of the month the issue ships. Signups before this day get this month's issue.
+const CUTOFF_DAY = Number(process.env.ISSUE_CUTOFF_DAY || 7);
+
 const MONTH_NAMES = ['January','February','March','April','May','June','July',
   'August','September','October','November','December'];
 
@@ -29,11 +36,12 @@ function siteUrlFromRequest(req) {
 }
 
 function getBusinessNow(timeZone) {
-  const fmt = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric' });
+  const fmt = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric', day: 'numeric' });
   const parts = fmt.formatToParts(new Date());
   const year = Number(parts.find(p => p.type === 'year').value);
   const month = Number(parts.find(p => p.type === 'month').value);
-  return { year, month };
+  const day = Number(parts.find(p => p.type === 'day').value);
+  return { year, month, day };
 }
 
 function addMonths(year, month, n) {
@@ -100,10 +108,13 @@ export default async function handler(req, res) {
       throw new Error('Missing STRIPE_SECRET_KEY environment variable');
     }
 
-    const { year, month } = getBusinessNow(TIMEZONE);
-    const issue = addMonths(year, month, 1);
-    const firstRecurring = addMonths(year, month, 2);
-    const trialEnd = firstOfMonthUnix(firstRecurring.year, firstRecurring.month, TIMEZONE);
+    const { year, month, day } = getBusinessNow(TIMEZONE);
+    // Before the cutoff: $49 covers this month's issue, renews on the 1st of next month.
+    // On/after the cutoff: $49 covers next month's issue, renews on the 1st of the month after.
+    const beforeCutoff = day < CUTOFF_DAY;
+    const issue = addMonths(year, month, beforeCutoff ? 0 : 1);
+    const firstRecurring = addMonths(year, month, beforeCutoff ? 1 : 2);
+    const firstRenewalAt = firstOfMonthUnix(firstRecurring.year, firstRecurring.month, TIMEZONE);
 
     const issueLabel = monthLabel(issue.year, issue.month);
     const firstRecurringLabel = monthLabel(firstRecurring.year, firstRecurring.month);
@@ -116,14 +127,22 @@ export default async function handler(req, res) {
 
     params.append('line_items[0][price_data][currency]', 'usd');
     params.append('line_items[0][price_data][product_data][name]', 'Les Essais — Your First Issue');
-    params.append('line_items[0][price_data][product_data][description]', "Your $49 payment covers next month's issue, paid in advance.");
+    params.append('line_items[0][price_data][product_data][description]', 'Your $49 payment covers the ' + issueLabel + ' issue.');
     params.append('line_items[0][price_data][unit_amount]', String(ONE_TIME_AMOUNT_CENTS));
     params.append('line_items[0][quantity]', '1');
 
     params.append('line_items[1][price]', RECURRING_PRICE_ID);
     params.append('line_items[1][quantity]', '1');
 
-    params.append('subscription_data[trial_end]', String(trialEnd));
+    if (beforeCutoff) {
+      // Regular subscription, no trial: first renewal on the 1st of next month.
+      // proration_behavior=none so the days until the 1st aren't billed on top of the $49.
+      params.append('subscription_data[billing_cycle_anchor]', String(firstRenewalAt));
+      params.append('subscription_data[proration_behavior]', 'none');
+    } else {
+      // The $49 prepays next month's issue, so skip billing until the month after.
+      params.append('subscription_data[trial_end]', String(firstRenewalAt));
+    }
     params.append('subscription_data[metadata][first_recurring_issue_month]', isoMonth(firstRecurring.year, firstRecurring.month));
     params.append('subscription_data[metadata][product]', 'les-essais');
 
@@ -137,8 +156,8 @@ export default async function handler(req, res) {
     params.append('success_url', SITE_URL + '/les-essais/success.html?session_id={CHECKOUT_SESSION_ID}');
     params.append('cancel_url', SITE_URL + '/les-essais/?checkout=cancelled');
 
-    const explainer = "The period marked \"free\" means no additional payment is due before your next billing date. " +
-      "Your next $49 payment is " + MONTH_NAMES[firstRecurring.month - 1] + " 1, " + firstRecurring.year + ", followed by $49 on the 1st of each month. Cancel anytime.";
+    const explainer = (beforeCutoff ? '' : "The period marked \"free\" means no additional payment is due before your next billing date. ") +
+      "Your $49 today covers the " + issueLabel + " issue. Your next $49 payment is " + MONTH_NAMES[firstRecurring.month - 1] + " 1, " + firstRecurring.year + ", followed by $49 on the 1st of each month. Cancel anytime.";
     params.append('custom_text[submit][message]', explainer);
 
     const forwarded = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
