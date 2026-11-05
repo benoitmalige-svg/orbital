@@ -21,6 +21,26 @@ const PRODUCT_ID = process.env.STRIPE_PRODUCT_ID || 'prod_VNyKVsDGHS6a0b';
 const RECURRING_PRICE_ID = process.env.STRIPE_RECURRING_PRICE_ID || 'price_1UNCNVGoK2Du26V2DBc8poO5';
 const ONE_TIME_AMOUNT_CENTS = 4900;
 
+// Every country Stripe Checkout accepts for shipping_address_collection (from Stripe's API spec).
+const STRIPE_SHIPPING_COUNTRIES = [
+  'AC','AD','AE','AF','AG','AI','AL','AM','AO','AQ','AR','AT','AU','AW','AX','AZ','BA','BB','BD','BE',
+  'BF','BG','BH','BI','BJ','BL','BM','BN','BO','BQ','BR','BS','BT','BV','BW','BY','BZ','CA','CD','CF',
+  'CG','CH','CI','CK','CL','CM','CN','CO','CR','CV','CW','CY','CZ','DE','DJ','DK','DM','DO','DZ','EC',
+  'EE','EG','EH','ER','ES','ET','FI','FJ','FK','FO','FR','GA','GB','GD','GE','GF','GG','GH','GI','GL',
+  'GM','GN','GP','GQ','GR','GS','GT','GU','GW','GY','HK','HN','HR','HT','HU','ID','IE','IL','IM','IN',
+  'IO','IQ','IS','IT','JE','JM','JO','JP','KE','KG','KH','KI','KM','KN','KR','KW','KY','KZ','LA','LB',
+  'LC','LI','LK','LR','LS','LT','LU','LV','LY','MA','MC','MD','ME','MF','MG','MK','ML','MM','MN','MO',
+  'MQ','MR','MS','MT','MU','MV','MW','MX','MY','MZ','NA','NC','NE','NG','NI','NL','NO','NP','NR','NU',
+  'NZ','OM','PA','PE','PF','PG','PH','PK','PL','PM','PN','PR','PS','PT','PY','QA','RE','RO','RS','RU',
+  'RW','SA','SB','SC','SD','SE','SG','SH','SI','SJ','SK','SL','SM','SN','SO','SR','SS','ST','SV','SX',
+  'SZ','TA','TC','TD','TF','TG','TH','TJ','TK','TL','TM','TN','TO','TR','TT','TV','TW','TZ','UA','UG',
+  'US','UY','UZ','VA','VC','VE','VG','VN','VU','WF','WS','XK','YE','YT','ZA','ZM','ZW','ZZ',
+];
+
+// Countries we can't mail to, plus uninhabited territories and Stripe's 'ZZ' (unknown).
+const SHIP_EXCLUDE = (process.env.SHIP_EXCLUDE || 'RU,AE,AQ,BV,GS,TF,ZZ')
+  .split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+
 // Day of the month the issue ships. Signups before this day get this month's issue.
 const CUTOFF_DAY = Number(process.env.ISSUE_CUTOFF_DAY || 7);
 
@@ -119,8 +139,10 @@ export default async function handler(req, res) {
     const issueLabel = monthLabel(issue.year, issue.month);
     const firstRecurringLabel = monthLabel(firstRecurring.year, firstRecurring.month);
 
-    const allowedCountries = (process.env.SHIP_COUNTRIES || 'US,CA,GB,FR,DE,AU,BE,CH,NL,ES,IT')
-      .split(',').map(s => s.trim()).filter(Boolean);
+    // Ship everywhere Stripe supports, minus SHIP_EXCLUDE. SHIP_COUNTRIES (if set) overrides with an explicit list.
+    const allowedCountries = process.env.SHIP_COUNTRIES
+      ? process.env.SHIP_COUNTRIES.split(',').map(s => s.trim()).filter(Boolean)
+      : STRIPE_SHIPPING_COUNTRIES.filter(c => !SHIP_EXCLUDE.includes(c));
 
     const params = new URLSearchParams();
     params.append('mode', 'subscription');
