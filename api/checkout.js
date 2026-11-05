@@ -4,8 +4,8 @@
 //  - the existing $49/month recurring price
 //  - renewals always land on the 1st of the month. Issues ship on the 7th
 //    (CUTOFF_DAY), so the first renewal depends on the signup date:
-//      * 1st-6th: the $49 pays for THIS month's issue. No trial: the
-//        subscription is anchored to the 1st of next month (no proration).
+//      * 1st-6th: the $49 pays for THIS month's issue; trial_end is the
+//        1st of next month (renewal is deferred via a trial in both cases).
 //      * 7th onward: this month's issue has shipped, so the $49 pays for
 //        NEXT month's issue; trial_end is the 1st of the month after next.
 //
@@ -134,15 +134,10 @@ export default async function handler(req, res) {
     params.append('line_items[1][price]', RECURRING_PRICE_ID);
     params.append('line_items[1][quantity]', '1');
 
-    if (beforeCutoff) {
-      // Regular subscription, no trial: first renewal on the 1st of next month.
-      // proration_behavior=none so the days until the 1st aren't billed on top of the $49.
-      params.append('subscription_data[billing_cycle_anchor]', String(firstRenewalAt));
-      params.append('subscription_data[proration_behavior]', 'none');
-    } else {
-      // The $49 prepays next month's issue, so skip billing until the month after.
-      params.append('subscription_data[trial_end]', String(firstRenewalAt));
-    }
+    // Charge the one-time $49 now and defer the recurring $49 to the 1st via trial_end.
+    // (billing_cycle_anchor + proration_behavior=none can't be used: Stripe rejects
+    // proration_behavior=none in a Checkout Session that includes a one-time price.)
+    params.append('subscription_data[trial_end]', String(firstRenewalAt));
     params.append('subscription_data[metadata][first_recurring_issue_month]', isoMonth(firstRecurring.year, firstRecurring.month));
     params.append('subscription_data[metadata][product]', 'les-essais');
 
@@ -156,7 +151,7 @@ export default async function handler(req, res) {
     params.append('success_url', SITE_URL + '/les-essais/success.html?session_id={CHECKOUT_SESSION_ID}');
     params.append('cancel_url', SITE_URL + '/les-essais/?checkout=cancelled');
 
-    const explainer = (beforeCutoff ? '' : "The period marked \"free\" means no additional payment is due before your next billing date. ") +
+    const explainer = "The period marked \"free\" means no additional payment is due before your next billing date. " +
       "Your $49 today covers the " + issueLabel + " issue. Your next $49 payment is " + MONTH_NAMES[firstRecurring.month - 1] + " 1, " + firstRecurring.year + ", followed by $49 on the 1st of each month. Cancel anytime.";
     params.append('custom_text[submit][message]', explainer);
 
