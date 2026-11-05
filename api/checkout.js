@@ -21,6 +21,11 @@ const PRODUCT_ID = process.env.STRIPE_PRODUCT_ID || 'prod_VNyKVsDGHS6a0b';
 const RECURRING_PRICE_ID = process.env.STRIPE_RECURRING_PRICE_ID || 'price_1UNCNVGoK2Du26V2DBc8poO5';
 const ONE_TIME_AMOUNT_CENTS = 4900;
 
+// Shipping to these countries is included in the $49. Everywhere else pays an
+// international shipping fee: once with the first issue, then monthly with each renewal.
+const DOMESTIC_COUNTRIES = ['US', 'CA', 'MX'];
+const INTL_SHIPPING_CENTS = Number(process.env.INTL_SHIPPING_CENTS || 800);
+
 // Every country Stripe Checkout accepts for shipping_address_collection (from Stripe's API spec).
 const STRIPE_SHIPPING_COUNTRIES = [
   'AC','AD','AE','AF','AG','AI','AL','AM','AO','AQ','AR','AT','AU','AW','AX','AZ','BA','BB','BD','BE',
@@ -120,6 +125,10 @@ export default async function handler(req, res) {
   const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
   const SITE_URL = siteUrlFromRequest(req);
   const TIMEZONE = process.env.BUSINESS_TIMEZONE || 'America/New_York';
+  // /api/checkout?ship=intl comes from the international shipping checkbox on the page.
+  const shipParam = (req.query && req.query.ship) || new URL(req.url || '/', 'http://localhost').searchParams.get('ship');
+  const intl = shipParam === 'intl';
+  const shipFee = '$' + (INTL_SHIPPING_CENTS / 100);
 
   res.setHeader('Cache-Control', 'no-store');
 
@@ -142,7 +151,8 @@ export default async function handler(req, res) {
     // Ship everywhere Stripe supports, minus SHIP_EXCLUDE. SHIP_COUNTRIES (if set) overrides with an explicit list.
     const allowedCountries = process.env.SHIP_COUNTRIES
       ? process.env.SHIP_COUNTRIES.split(',').map(s => s.trim()).filter(Boolean)
-      : STRIPE_SHIPPING_COUNTRIES.filter(c => !SHIP_EXCLUDE.includes(c));
+      : STRIPE_SHIPPING_COUNTRIES.filter(c => !SHIP_EXCLUDE.includes(c))
+          .filter(c => intl ? !DOMESTIC_COUNTRIES.includes(c) : DOMESTIC_COUNTRIES.includes(c));
 
     const params = new URLSearchParams();
     params.append('mode', 'subscription');
@@ -156,6 +166,20 @@ export default async function handler(req, res) {
     params.append('line_items[1][price]', RECURRING_PRICE_ID);
     params.append('line_items[1][quantity]', '1');
 
+    if (intl) {
+      // First issue's shipping, charged today with the one-time $49.
+      params.append('line_items[2][price_data][currency]', 'usd');
+      params.append('line_items[2][price_data][product_data][name]', 'International shipping — first issue');
+      params.append('line_items[2][price_data][unit_amount]', String(INTL_SHIPPING_CENTS));
+      params.append('line_items[2][quantity]', '1');
+      // Monthly international shipping, billed with each renewal (deferred by the same trial_end).
+      params.append('line_items[3][price_data][currency]', 'usd');
+      params.append('line_items[3][price_data][product_data][name]', 'International shipping');
+      params.append('line_items[3][price_data][unit_amount]', String(INTL_SHIPPING_CENTS));
+      params.append('line_items[3][price_data][recurring][interval]', 'month');
+      params.append('line_items[3][quantity]', '1');
+    }
+
     // Charge the one-time $49 now and defer the recurring $49 to the 1st via trial_end.
     // (billing_cycle_anchor + proration_behavior=none can't be used: Stripe rejects
     // proration_behavior=none in a Checkout Session that includes a one-time price.)
@@ -165,6 +189,8 @@ export default async function handler(req, res) {
 
     params.append('metadata[first_paid_issue_month]', isoMonth(issue.year, issue.month));
     params.append('metadata[business]', 'les-essais');
+    params.append('metadata[shipping_region]', intl ? 'international' : 'domestic');
+    params.append('subscription_data[metadata][shipping_region]', intl ? 'international' : 'domestic');
 
     params.append('phone_number_collection[enabled]', 'true');
     params.append('billing_address_collection', 'required');
@@ -173,14 +199,18 @@ export default async function handler(req, res) {
     params.append('success_url', SITE_URL + '/les-essais/success.html?session_id={CHECKOUT_SESSION_ID}');
     params.append('cancel_url', SITE_URL + '/les-essais/?checkout=cancelled');
 
+    const pay = intl ? '$49 + ' + shipFee + ' international shipping' : '$49';
     const explainer = "The period marked \"free\" means no additional payment is due before your next billing date. " +
-      "Your $49 today covers the " + issueLabel + " issue. Your next $49 payment is " + MONTH_NAMES[firstRecurring.month - 1] + " 1, " + firstRecurring.year + ", followed by $49 on the 1st of each month. Cancel anytime.";
+      "Your " + pay + " today covers the " + issueLabel + " issue. Your next " + pay + " payment is " + MONTH_NAMES[firstRecurring.month - 1] + " 1, " + firstRecurring.year + ", followed by " + pay + " on the 1st of each month. Cancel anytime.";
     params.append('custom_text[submit][message]', explainer);
+    params.append('custom_text[shipping_address][message]', intl
+      ? 'International shipping (' + shipFee + '/month) is added for addresses outside the US, Canada and Mexico.'
+      : 'Shipping to the US, Canada or Mexico is included. Shipping elsewhere? Go back and tick the international shipping box.');
 
     const forwarded = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
     const ip = forwarded || req.socket?.remoteAddress || 'unknown';
     const bucket = Math.floor(Date.now() / (2 * 60 * 1000));
-    const idempotencyKey = 'les-essais-checkout-' + ip + '-' + bucket;
+    const idempotencyKey = 'les-essais-checkout-' + (intl ? 'intl-' : '') + ip + '-' + bucket;
 
     const { ok, data } = await stripeRequest('checkout/sessions', {
       body: params,
