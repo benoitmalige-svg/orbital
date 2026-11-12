@@ -49,6 +49,14 @@
       if (sessionId && link) {
         link.href = '/api/portal?session_id=' + encodeURIComponent(sessionId);
       }
+      // New $15 enrollment flow (api/enroll.js) lands here with offer=intro.
+      if (params.get('offer') === 'intro') {
+        var p = document.querySelectorAll('p');
+        if (p[0]) p[0].textContent = 'Your $15 payment is confirmed and credited toward your first $49 month. ' +
+          'On the 1st of next month you pay the remaining $34, then $49 on the 1st of each month, until you cancel.';
+        if (p[1]) p[1].textContent = 'You can manage or cancel your subscription at any time. ' +
+          'Cancel before the 1st and you will not be charged again.';
+      }
     })();
   </script>
 </body>
