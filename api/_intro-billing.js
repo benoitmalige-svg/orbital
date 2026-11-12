@@ -92,8 +92,8 @@ export const INTL_SHIP_LOOKUP_KEY = process.env.STRIPE_INTL_SHIP_LOOKUP_KEY || '
 class RetryableError extends Error {}
 
 function failIfRetryable(r, what) {
-  // 429 / 5xx / network: throw so the webhook returns 500 and Stripe retries.
-  if (!r.ok && (r.status === 429 || r.status >= 500)) throw new RetryableError(what + ' failed (' + r.status + ')');
+  // 409 (concurrent idempotent request) / 429 / 5xx / network: throw so the webhook returns 500 and Stripe retries.
+  if (!r.ok && (r.status === 409 || r.status === 429 || r.status >= 500)) throw new RetryableError(what + ' failed (' + r.status + ')');
 }
 
 async function shippingCountryFor(sub, secretKey) {
