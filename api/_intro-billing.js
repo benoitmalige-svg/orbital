@@ -173,10 +173,11 @@ export async function finalizeIntroSubscription(subscriptionId, secretKey) {
 
 export { RetryableError };
 
-// Copied unchanged from api/checkout.js (shipping rules shared by both flows).
-// Shipping to these countries is included in the $49. Everywhere else pays an
-// international shipping fee: once with the first issue, then monthly with each renewal.
-export const DOMESTIC_COUNTRIES = ['US', 'CA', 'MX'];
+// NEW intro flow only (approved policy, V24): shipping is included in the US
+// only. Every other supported country, including Canada and Mexico, pays
+// $8/month from the first renewal. The existing flow (api/checkout.js) and
+// existing subscriptions keep their own US/CA/MX rule and are not affected.
+export const DOMESTIC_COUNTRIES = ['US'];
 export const INTL_SHIPPING_CENTS = Number(process.env.INTL_SHIPPING_CENTS || 800);
 
 // Every country Stripe Checkout accepts for shipping_address_collection (from Stripe's API spec).
