@@ -85,6 +85,94 @@ export const stripeGet = (path, secretKey) => stripeFetch('GET', path, { secretK
 export const stripePost = (path, body, secretKey, idempotencyKey) =>
   stripeFetch('POST', path, { body, secretKey, idempotencyKey });
 
+// $8/month international shipping, added to the subscription after checkout
+// (never charged at signup; first billed with the first renewal).
+export const INTL_SHIP_LOOKUP_KEY = process.env.STRIPE_INTL_SHIP_LOOKUP_KEY || 'les_essais_intl_shipping_monthly';
+
+class RetryableError extends Error {}
+
+function failIfRetryable(r, what) {
+  // 429 / 5xx / network: throw so the webhook returns 500 and Stripe retries.
+  if (!r.ok && (r.status === 429 || r.status >= 500)) throw new RetryableError(what + ' failed (' + r.status + ')');
+}
+
+async function shippingCountryFor(sub, secretKey) {
+  const s = await stripeGet('checkout/sessions?limit=1&subscription=' + encodeURIComponent(sub.id), secretKey);
+  failIfRetryable(s, 'session lookup');
+  const session = s.ok && s.data.data && s.data.data[0];
+  const fromSession = session && (
+    (session.collected_information && session.collected_information.shipping_details &&
+      session.collected_information.shipping_details.address) ||
+    (session.shipping_details && session.shipping_details.address));
+  if (fromSession && fromSession.country) return fromSession.country;
+  const cust = sub.customer && typeof sub.customer === 'object' ? sub.customer : null;
+  return (cust && cust.shipping && cust.shipping.address && cust.shipping.address.country) || null;
+}
+
+// Idempotent server-side finalization of an intro-offer subscription.
+// Safe to run any number of times, concurrently, from the webhook and the
+// success page. Never touches subscriptions without metadata.offer=intro-15.
+//   1. First renewal ($34 / $42) on the next calendar 1st after the subscription
+//      was created (Checkout can only set a trial >= 48h out).
+//   2. International address -> add the $8/month shipping item (no proration).
+export async function finalizeIntroSubscription(subscriptionId, secretKey) {
+  const r = await stripeGet('subscriptions/' + encodeURIComponent(subscriptionId) +
+    '?expand[]=customer&expand[]=items.data.price', secretKey);
+  failIfRetryable(r, 'subscription lookup');
+  if (!r.ok) return { status: 'not_found' };
+  const sub = r.data;
+  if (!sub.metadata || sub.metadata.offer !== INTRO_OFFER) return { status: 'ignored' };
+  if (sub.status !== 'trialing') return { status: 'not_trialing', sub: sub.id };
+
+  const actions = [];
+  const target = nextFirst(new Date(sub.start_date * 1000), businessTimeZone()).unix;
+
+  const country = await shippingCountryFor(sub, secretKey);
+  const intl = !!country && !DOMESTIC_COUNTRIES.includes(country);
+  const region = country ? (intl ? 'international' : 'domestic') : null;
+
+  const update = new URLSearchParams();
+  if (sub.trial_end !== target) {
+    update.append('trial_end', String(target));
+    update.append('proration_behavior', 'none');
+  }
+  if (region && sub.metadata.shipping_region !== region) update.append('metadata[shipping_region]', region);
+  if (country && sub.metadata.shipping_country !== country) update.append('metadata[shipping_country]', country);
+  if ([...update.keys()].length) {
+    const u = await stripePost('subscriptions/' + sub.id, update, secretKey,
+      'le-intro-sub-' + sub.id + '-' + update.toString());
+    failIfRetryable(u, 'subscription update');
+    if (!u.ok) {
+      console.error('finalize: subscription update rejected', sub.id, u.data && u.data.error);
+      actions.push('update_rejected');
+    } else actions.push('updated:' + [...new Set(update.keys())].join(','));
+  }
+
+  if (intl) {
+    const hasShip = sub.items.data.some((it) => it.price && it.price.lookup_key === INTL_SHIP_LOOKUP_KEY);
+    if (!hasShip) {
+      const p = await stripeGet('prices?active=true&lookup_keys[]=' + encodeURIComponent(INTL_SHIP_LOOKUP_KEY), secretKey);
+      failIfRetryable(p, 'shipping price lookup');
+      const shipPrice = p.ok && p.data.data && p.data.data[0];
+      if (!shipPrice) throw new RetryableError('Shipping price not found: ' + INTL_SHIP_LOOKUP_KEY);
+      const body = new URLSearchParams();
+      body.append('subscription', sub.id);
+      body.append('price', shipPrice.id);
+      body.append('quantity', '1');
+      body.append('proration_behavior', 'none');
+      const a = await stripePost('subscription_items', body, secretKey, 'le-intro-ship-' + sub.id);
+      failIfRetryable(a, 'shipping item add');
+      if (!a.ok) {
+        console.error('finalize: shipping item rejected', sub.id, a.data && a.data.error);
+        actions.push('shipping_rejected');
+      } else actions.push('shipping_added');
+    }
+  }
+  return { status: 'ok', sub: sub.id, country, target, actions };
+}
+
+export { RetryableError };
+
 // Copied unchanged from api/checkout.js (shipping rules shared by both flows).
 // Shipping to these countries is included in the $49. Everywhere else pays an
 // international shipping fee: once with the first issue, then monthly with each renewal.

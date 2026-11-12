@@ -9,16 +9,19 @@
 // The subscription trials until the next 1st, so cancelling before then
 // (Customer Portal, cancel at period end) means no further charges.
 //
+// International (outside US/CA/MX): same $15 today; $8/month shipping is added
+// server-side after checkout and first billed on the next 1st ($42, then $57).
+//
 // Stripe Checkout requires a trial to end at least 48 hours out. For signups
-// in the last ~2 days of a month, the trial is set just past 48 hours and
-// /api/enroll-complete (the success_url) pulls it back to the 1st.
+// in the last ~2 days of a month the trial is set just past 48 hours and the
+// webhook (api/enroll-webhook.js, with retries) pulls it back to the 1st.
 //
 // Fulfillment is unchanged: session metadata business=les-essais triggers the
 // existing Stripe webhook (tax project) -> Beehiiv "Les Essais - Member Welcome".
 
 import {
   INTRO_OFFER, INTRO_AMOUNT_CENTS, INTRO_PRICE_LOOKUP_KEY, INTRO_COUPON_ID, MONTH_NAMES,
-  DOMESTIC_COUNTRIES, INTL_SHIPPING_CENTS, STRIPE_SHIPPING_COUNTRIES, SHIP_EXCLUDE,
+  INTL_SHIPPING_CENTS, STRIPE_SHIPPING_COUNTRIES, SHIP_EXCLUDE,
   businessTimeZone, siteUrlFromRequest, nextFirst, monthLabel, isoMonth, stripeGet, stripePost,
 } from './_intro-billing.js';
 
@@ -29,8 +32,6 @@ export default async function handler(req, res) {
   const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
   const SITE_URL = siteUrlFromRequest(req);
   const TIMEZONE = businessTimeZone();
-  const shipParam = (req.query && req.query.ship) || new URL(req.url || '/', 'http://localhost').searchParams.get('ship');
-  const intl = shipParam === 'intl';
   const shipFee = '$' + (INTL_SHIPPING_CENTS / 100);
 
   res.setHeader('Cache-Control', 'no-store');
@@ -51,7 +52,7 @@ export default async function handler(req, res) {
     const allowedCountries = process.env.SHIP_COUNTRIES
       ? process.env.SHIP_COUNTRIES.split(',').map((s) => s.trim()).filter(Boolean)
       : STRIPE_SHIPPING_COUNTRIES.filter((c) => !SHIP_EXCLUDE.includes(c))
-          .filter((c) => (intl ? !DOMESTIC_COUNTRIES.includes(c) : DOMESTIC_COUNTRIES.includes(c)));
+          ;
 
     const p = new URLSearchParams();
     p.append('mode', 'subscription');
@@ -68,15 +69,6 @@ export default async function handler(req, res) {
     p.append('line_items[1][price]', introPrice.id);
     p.append('line_items[1][quantity]', '1');
 
-    if (intl) {
-      // International shipping, billed monthly from the first renewal (first printed issue).
-      p.append('line_items[2][price_data][currency]', 'usd');
-      p.append('line_items[2][price_data][product_data][name]', 'International shipping');
-      p.append('line_items[2][price_data][unit_amount]', String(INTL_SHIPPING_CENTS));
-      p.append('line_items[2][price_data][recurring][interval]', 'month');
-      p.append('line_items[2][quantity]', '1');
-    }
-
     // $15 off the membership for one month from today = the next 1st only ($34).
     p.append('discounts[0][coupon]', INTRO_COUPON_ID);
 
@@ -84,13 +76,11 @@ export default async function handler(req, res) {
     p.append('subscription_data[metadata][product]', 'les-essais');
     p.append('subscription_data[metadata][offer]', INTRO_OFFER);
     p.append('subscription_data[metadata][first_recurring_issue_month]', isoMonth(first.year, first.month));
-    p.append('subscription_data[metadata][shipping_region]', intl ? 'international' : 'domestic');
 
     // business=les-essais is what the existing fulfillment webhook keys on.
     p.append('metadata[business]', 'les-essais');
     p.append('metadata[offer]', INTRO_OFFER);
     p.append('metadata[first_paid_issue_month]', isoMonth(first.year, first.month));
-    p.append('metadata[shipping_region]', intl ? 'international' : 'domestic');
 
     p.append('phone_number_collection[enabled]', 'true');
     p.append('billing_address_collection', 'required');
@@ -99,20 +89,21 @@ export default async function handler(req, res) {
     p.append('success_url', SITE_URL + '/api/enroll-complete?session_id={CHECKOUT_SESSION_ID}');
     p.append('cancel_url', SITE_URL + '/les-essais/?checkout=cancelled#join');
 
-    const renew = intl ? '$49 + ' + shipFee + ' international shipping' : '$49';
-    const first34 = intl ? '$34 + ' + shipFee + ' international shipping' : '$34';
+    const first34 = 49 - INTRO_AMOUNT_CENTS / 100;
+    const intlFirst = first34 + INTL_SHIPPING_CENTS / 100;
+    const intlRenew = 49 + INTL_SHIPPING_CENTS / 100;
     p.append('custom_text[submit][message]',
-      'You pay $15 today. On ' + firstLabel + ' you pay ' + first34 + ' (your first $49 month minus today\'s $15), ' +
-      'then ' + renew + ' on the 1st of each month. Nothing else is charged before ' + firstLabel + '. ' +
+      'You pay $15 today. Nothing else is charged before ' + firstLabel + '. ' +
+      'US, Canada and Mexico: $' + first34 + ' on ' + firstLabel + ' (your first $49 month minus today\'s $15), then $49 on the 1st of each month. ' +
+      'All other countries: ' + shipFee + '/month international shipping is added from ' + firstLabel + ': $' + intlFirst + ' on ' + firstLabel + ', then $' + intlRenew + ' on the 1st of each month. ' +
       'Cancel anytime before a renewal to stop future charges.');
-    p.append('custom_text[shipping_address][message]', intl
-      ? 'International shipping (' + shipFee + '/month) is added for addresses outside the US, Canada and Mexico.'
-      : 'Shipping to the US, Canada or Mexico is included.');
+    p.append('custom_text[shipping_address][message]',
+      'Shipping to the US, Canada and Mexico is included. Other countries: ' + shipFee + '/month, starting with your first renewal on ' + firstLabel + ' (none today).');
 
     const forwarded = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
     const ip = forwarded || (req.socket && req.socket.remoteAddress) || 'unknown';
     const bucket = Math.floor(Date.now() / (2 * 60 * 1000));
-    const idempotencyKey = 'les-essais-enroll-' + (intl ? 'intl-' : '') + ip + '-' + bucket;
+    const idempotencyKey = 'les-essais-enroll-' + ip + '-' + bucket;
 
     const { ok, data } = await stripePost('checkout/sessions', p, STRIPE_SECRET_KEY, idempotencyKey);
     if (!ok || !data.url) {
