@@ -1,55 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script defer src="/_vercel/insights/script.js"></script>
+<script defer src="/_vercel/insights/script.js"></script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>You are subscribed - Les Essais</title>
+<meta name="theme-color" content="#f3f0e8" />
+<meta name="robots" content="noindex" />
+<title>Welcome. Les Essais</title>
+<link href="https://fonts.googleapis.com" rel="preconnect" />
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&amp;family=Courier+Prime:ital,wght@0,400;0,700;1,400&amp;display=swap" rel="stylesheet" />
 <style>
-  body {
-    font-family: Georgia, "Times New Roman", serif;
-    max-width: 620px;
-    margin: 90px auto;
-    padding: 0 24px;
-    color: #222;
-    line-height: 1.7;
-  }
-  h1 { font-size: 1.6rem; margin-bottom: 0.5em; }
-  a.button {
-    display: inline-block;
-    margin-top: 28px;
-    padding: 12px 22px;
-    border: 1px solid #222;
-    text-decoration: none;
-    color: #222;
-  }
-  a.button:hover { background: #222; color: #fff; }
-  p.fine { font-size: 0.9rem; color: #555; }
+  :root{--paper:#f3f0e8;--ink:#26363b;--muted:#737b79;--line:#c9c8bd}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Courier Prime','Courier New',monospace;font-size:16px;line-height:1.7}
+  main{max-width:640px;margin:0 auto;padding:clamp(56px,12vh,120px) 22px 72px}
+  .eyebrow{font-size:11px;font-weight:bold;letter-spacing:.16em;text-transform:uppercase;color:#7b827f;margin:0 0 28px}
+  h1{font-family:Archivo,Arial,sans-serif;font-weight:900;font-size:clamp(2.6rem,9vw,4.4rem);line-height:1.05;letter-spacing:-.058em;margin:0 0 22px}
+  .lead{font-family:Archivo,Arial,sans-serif;font-weight:700;font-size:1.25rem;letter-spacing:-.02em;margin:0 0 30px}
+  p{margin:0 0 18px}
+  .rule{border:0;border-top:1px solid var(--line);margin:40px 0 26px}
+  .note-title{font-size:11px;font-weight:bold;letter-spacing:.16em;text-transform:uppercase;margin:0 0 6px}
+  .fine{font-size:13px;color:var(--muted)}
+  .manage{display:inline-block;margin-top:34px;font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);text-decoration:underline;text-underline-offset:4px}
+  .manage:hover{color:var(--ink)}
 </style>
 </head>
 <body>
+<main>
+  <p class="eyebrow">Les Essais / Welcome</p>
   <h1>Welcome to the correspondence.</h1>
-  <p>
-    Your $49 payment is confirmed and covers your upcoming issue of Les Essais.
-    Your subscription will then renew automatically at $49/month on the 1st,
-    starting with the date shown at checkout, until you cancel.
-  </p>
-  <p>
-    You can manage or cancel your subscription at any time, including during
-    the period before your first automatic renewal.
-  </p>
-  <a class="button" id="manage-link" href="/les-essais/">Manage my subscription</a>
-  <p class="fine">A confirmation and receipt have been sent to your email.</p>
+  <p class="lead">Your place is confirmed.</p>
+  <p>I've just sent you an email with your complimentary copy of <em>The Identity Tax</em> and an invitation to enter The Symposium, where your first essay is waiting.</p>
+  <p>Start with the book. We'll take it from there.</p>
 
-  <script>
-    (function () {
-      var params = new URLSearchParams(window.location.search);
-      var sessionId = params.get('session_id');
-      var link = document.getElementById('manage-link');
-      if (sessionId && link) {
-        link.href = '/api/portal?session_id=' + encodeURIComponent(sessionId);
-      }
-    })();
-  </script>
+  <hr class="rule" />
+  <p class="note-title">Check your email</p>
+  <p class="fine">Your receipt and subscription details will arrive separately.</p>
+
+  <a class="manage" id="manage-link" href="/les-essais/">Manage my subscription</a>
+</main>
+<script>
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    var sessionId = params.get('session_id');
+    var link = document.getElementById('manage-link');
+    if (sessionId && link) {
+      link.href = '/api/portal?session_id=' + encodeURIComponent(sessionId);
+    }
+  })();
+</script>
 </body>
 </html>
