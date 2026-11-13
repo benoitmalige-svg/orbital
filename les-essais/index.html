@@ -287,6 +287,15 @@ body .quote-band .frame > p {
   color: var(--ink) !important;
 }
 @media (max-width: 520px) { body .quote-band .frame > p {font-size: clamp(2.4rem, 10vw, 4.5rem);} }
+
+/* Mobile typography and rhythm audit: one editorial body style, consistent section spacing. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.quote-band:empty{display:none}
+@media(max-width:520px){
+ .section-copy p,.instant-lede,.legacy-detail{font-family:'Courier Prime','Courier New',monospace;font-size:16px;font-weight:400;letter-spacing:normal;line-height:1.82}
+ .instant-lede{margin-bottom:24px}
+ .section,.instant-section,.voices-section,.faq-section{padding-top:56px;padding-bottom:56px}
+}
 </style></head><body><div class="frame"><header class="topbar"><span>LES ESSAIS</span></header></div>
 <main>
 <section aria-label="Next printing deadline" class="editorial-clock frame">
