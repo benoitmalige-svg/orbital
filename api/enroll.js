@@ -90,13 +90,12 @@ export default async function handler(req, res) {
     p.append('cancel_url', SITE_URL + '/les-essais/?checkout=cancelled#join');
 
     const first34 = 49 - INTRO_AMOUNT_CENTS / 100;
-    const intlFirst = first34 + INTL_SHIPPING_CENTS / 100;
-    const intlRenew = 49 + INTL_SHIPPING_CENTS / 100;
+    const firstShort = MONTH_NAMES[first.month - 1] + ' 1';
     p.append('custom_text[submit][message]',
-      'You pay $15 today. Nothing else is charged before ' + firstLabel + '. ' +
-      'U.S., Canada and Mexico: $' + first34 + ' on ' + firstLabel + ' (your first $49 month minus today\'s $15), then $49 on the 1st of each month. ' +
-      'Outside the U.S., Canada and Mexico, shipping adds ' + shipFee + ' to each payment beginning on ' + firstLabel + ': $' + intlFirst + ' on ' + firstLabel + ', then $' + intlRenew + ' on the 1st of each month. ' +
-      'Cancel anytime before your next charge to stop future payments.');
+      '$15 today, credited toward your first full month. ' +
+      'Your membership renews automatically at $' + first34 + ' on ' + firstShort + ', then $49 on the 1st of each following month. ' +
+      'International shipping, where applicable, adds ' + shipFee + '/month starting with your first renewal. ' +
+      'Cancel anytime before your next charge using the subscription management link in your welcome email.');
     p.append('custom_text[shipping_address][message]',
       'Shipping to the U.S., Canada and Mexico is included. Elsewhere: ' + shipFee + '/month shipping, beginning with your first renewal on ' + firstLabel + ' (nothing extra today).');
 
