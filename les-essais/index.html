@@ -502,6 +502,10 @@ const io=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecti
 #welcome-credit .credit-signoff{margin-bottom:20px}
 #welcome-credit .credit-body strong{font-weight:700;color:#213b45}
 #welcome-credit .credit-terms{font-size:10px;line-height:1.55;color:#52636b;margin:13px 0 0;text-align:center}
+#welcome-credit .credit-intl{display:flex;align-items:flex-start;gap:10px;margin:2px 0 12px;padding:4px 0;font-size:13px;line-height:1.5;color:#354b53;cursor:pointer}
+#welcome-credit .credit-intl input{flex:none;width:17px;height:17px;margin:1px 0 0;accent-color:#293c43;cursor:pointer}
+#welcome-credit .credit-intl-note{font-size:12px;line-height:1.6;color:#52636b;margin:-4px 0 14px 27px}
+#welcome-credit .credit-intl-note[hidden]{display:none}
 #welcome-credit .credit-continue{display:block;width:100%;border:0;border-radius:7px;padding:15px 10px;background:#293c43;color:#f7f4e9;font:700 12px 'Courier New',monospace;letter-spacing:.025em;cursor:pointer}
 #welcome-credit .credit-demo{font-size:10px;color:#617177;text-align:center;margin:10px 0 0}
 @keyframes creditIn{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:translateY(0)}}
@@ -512,9 +516,11 @@ const io=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecti
  const trigger=document.getElementById('preview-checkout-button');
  if(!trigger)return;
  const panel=document.createElement('div');panel.id='welcome-credit';panel.hidden=true;
- panel.innerHTML=`<p class="credit-body">It means a lot that you’re considering joining us. So I’d like to do something for you: <strong>the $15 you pay today will count toward your first full month of correspondence.</strong></p><p class="credit-body credit-signoff">A small thank-you for taking the first step. I’m glad you’re here.</p><button class="credit-continue" type="button">LET’S GET YOU STARTED ↗</button><p class="credit-terms">$15 today · $34 on the next calendar 1st · $49/month thereafter, automatically until canceled. Your first printed edition follows your first successful renewal.</p>`;
+ panel.innerHTML=`<p class="credit-body">It means a lot that you’re considering joining us. So I’d like to do something for you: <strong>the $15 you pay today will count toward your first full month of correspondence.</strong></p><p class="credit-body credit-signoff">A small thank-you for taking the first step. I’m glad you’re here.</p><label class="credit-intl" for="credit-intl-toggle"><input id="credit-intl-toggle" type="checkbox"/><span>I’m outside the US, Canada, or Mexico.</span></label><p class="credit-intl-note" id="credit-intl-note" aria-live="polite" hidden>We ship internationally, too. An additional $8/month for shipping will apply starting with your first renewal.</p><button class="credit-continue" type="button">LET’S GET YOU STARTED ↗</button><p class="credit-terms">$15 today · $34 on the next calendar 1st · $49/month thereafter, automatically until canceled. Your first printed edition follows your first successful renewal.</p>`;
  const action=trigger.closest('.offer-v34-action');action.appendChild(panel);
  trigger.addEventListener('click',function(e){e.preventDefault();panel.hidden=!panel.hidden;trigger.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden){requestAnimationFrame(()=>panel.scrollIntoView({behavior:'smooth',block:'nearest'}));}});
  panel.querySelector('.credit-continue').addEventListener('click',function(){window.location.href='/api/enroll';});
+ const intl=panel.querySelector('#credit-intl-toggle'),note=panel.querySelector('#credit-intl-note');
+ intl.addEventListener('change',function(){note.hidden=!intl.checked;});
 })();
 </script></body></html>
