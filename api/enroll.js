@@ -9,7 +9,7 @@
 // The subscription trials until the next 1st, so cancelling before then
 // (Customer Portal, cancel at period end) means no further charges.
 //
-// Outside the U.S. (incl. Canada/Mexico): same $15 today; $8/month shipping is added
+// Outside the U.S., Canada and Mexico: same $15 today; $8/month shipping is added
 // server-side after checkout and first billed on the next 1st ($42, then $57).
 //
 // Stripe Checkout requires a trial to end at least 48 hours out. For signups
@@ -94,11 +94,11 @@ export default async function handler(req, res) {
     const intlRenew = 49 + INTL_SHIPPING_CENTS / 100;
     p.append('custom_text[submit][message]',
       'You pay $15 today. Nothing else is charged before ' + firstLabel + '. ' +
-      'U.S. addresses: $' + first34 + ' on ' + firstLabel + ' (your first $49 month minus today\'s $15), then $49 on the 1st of each month. ' +
-      'Outside the U.S. (including Canada and Mexico), shipping adds ' + shipFee + ' to each payment beginning on ' + firstLabel + ': $' + intlFirst + ' on ' + firstLabel + ', then $' + intlRenew + ' on the 1st of each month. ' +
+      'U.S., Canada and Mexico: $' + first34 + ' on ' + firstLabel + ' (your first $49 month minus today\'s $15), then $49 on the 1st of each month. ' +
+      'Outside the U.S., Canada and Mexico, shipping adds ' + shipFee + ' to each payment beginning on ' + firstLabel + ': $' + intlFirst + ' on ' + firstLabel + ', then $' + intlRenew + ' on the 1st of each month. ' +
       'Cancel anytime before your next charge to stop future payments.');
     p.append('custom_text[shipping_address][message]',
-      'U.S. shipping is included. Outside the U.S.: ' + shipFee + '/month shipping, beginning with your first renewal on ' + firstLabel + ' (nothing extra today).');
+      'Shipping to the U.S., Canada and Mexico is included. Elsewhere: ' + shipFee + '/month shipping, beginning with your first renewal on ' + firstLabel + ' (nothing extra today).');
 
     const forwarded = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
     const ip = forwarded || (req.socket && req.socket.remoteAddress) || 'unknown';
