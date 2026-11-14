@@ -97,13 +97,16 @@ export default async function handler(req, res) {
     // Deliver the essay (new and existing subscribers).
     const journey = await beehiiv('POST', '/automations/' + AUTOMATION_ID + '/journeys',
       { subscription_id: subscriptionId }, key);
+    console.warn('purpose-subscribe: create', sub.status, 'tag', tag.status, 'enroll', journey.status,
+      JSON.stringify(journey.data).slice(0, 400));
     if (!journey.ok) {
-      // 4xx here usually means the 24h re-entry limit: the essay was just sent.
-      if (journey.status >= 500 || journey.status === 401 || journey.status === 404) {
+      // A re-entry-limit response means the essay was just sent: treat as success.
+      const msg = JSON.stringify(journey.data || '').toLowerCase();
+      const alreadyEnrolled = journey.status < 500 && /enrol|enroll|already|limit/.test(msg);
+      if (!alreadyEnrolled) {
         console.error('purpose-subscribe: enroll failed', journey.status, journey.data);
         return res.status(502).json({ ok: false, error: 'delivery_failed' });
       }
-      console.log('purpose-subscribe: enroll skipped', journey.status, journey.data);
     }
 
     return res.status(200).json({ ok: true });
