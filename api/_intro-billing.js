@@ -1,7 +1,8 @@
 // api/_intro-billing.js
-// Shared helpers for the Les Essais introductory enrollment flow
-// ($15 today, $34 on the next calendar 1st, then $49 on every 1st).
-// Files starting with "_" are not exposed as Vercel routes.
+// LEGACY + shared helpers. The introductory flow ($15 today, $34 on the next
+// calendar 1st, then $49 on every 1st) is no longer sold; finalizeIntroSubscription
+// stays so existing intro-15 subscriptions keep the terms they signed up for.
+// New enrollments use api/_billing.js.
 
 export const INTRO_OFFER = 'intro-15';
 export const INTRO_AMOUNT_CENTS = 1500;
@@ -27,7 +28,7 @@ export function siteUrlFromRequest(req) {
   return proto + '://' + host;
 }
 
-function ymdIn(date, timeZone) {
+export function ymdIn(date, timeZone) {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric', day: 'numeric' })
     .formatToParts(date);
   const get = (t) => Number(parts.find((p) => p.type === t).value);
@@ -46,7 +47,7 @@ function timeZoneOffsetMs(date, timeZone) {
   return asUTC - date.getTime();
 }
 
-function firstOfMonthUnix(year, month, timeZone) {
+export function firstOfMonthUnix(year, month, timeZone) {
   const guess = Date.UTC(year, month - 1, 1, 0, 0, 0);
   // Two passes so the offset is the one in effect at local midnight (DST-safe).
   let ts = guess - timeZoneOffsetMs(new Date(guess), timeZone);
@@ -96,7 +97,7 @@ function failIfRetryable(r, what) {
   if (!r.ok && (r.status === 409 || r.status === 429 || r.status >= 500)) throw new RetryableError(what + ' failed (' + r.status + ')');
 }
 
-async function shippingCountryFor(sub, secretKey) {
+export async function shippingCountryFor(sub, secretKey) {
   const s = await stripeGet('checkout/sessions?limit=1&subscription=' + encodeURIComponent(sub.id), secretKey);
   failIfRetryable(s, 'session lookup');
   const session = s.ok && s.data.data && s.data.data[0];
