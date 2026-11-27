@@ -31,8 +31,8 @@
   <p class="eyebrow">Les Essais / Welcome</p>
   <h1>Welcome to the correspondence.</h1>
   <p class="lead">Your place is confirmed.</p>
-  <p>I've just sent you an email with your complimentary copy of <em>The Identity Tax</em> and an invitation to enter The Symposium, where your first essay is waiting.</p>
-  <p>Start with the book. We'll take it from there.</p>
+  <p id="welcome-copy">I've just sent you an email with your invitation to enter The Symposium and the digital library, where your first essay is waiting.</p>
+  <p id="welcome-next">Your first printed edition follows with the next monthly dispatch.</p>
 
   <hr class="rule" />
   <p class="note-title">Check your email</p>
@@ -45,6 +45,11 @@
     var params = new URLSearchParams(window.location.search);
     var sessionId = params.get('session_id');
     var link = document.getElementById('manage-link');
+    // Members who joined under the discontinued introductory offer were promised the book.
+    if (params.get('offer') === 'intro') {
+      document.getElementById('welcome-copy').innerHTML = "I've just sent you an email with your complimentary copy of <em>The Identity Tax</em> and an invitation to enter The Symposium, where your first essay is waiting.";
+      document.getElementById('welcome-next').textContent = "Start with the book. We'll take it from there.";
+    }
     if (sessionId && link) {
       link.href = '/api/portal?session_id=' + encodeURIComponent(sessionId);
     }

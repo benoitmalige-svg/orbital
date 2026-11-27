@@ -1,6 +1,15 @@
 // api/enroll-webhook.js
-// Stripe webhook for the Les Essais intro enrollment flow.
-// Events: checkout.session.completed, customer.subscription.created
+// Stripe webhook for Les Essais enrollment.
+// Events:
+//   checkout.session.completed, customer.subscription.created
+//       -> edition-v1 subscriptions: shipping destination, intl shipping item,
+//          duplicate-membership flag (api/_billing.js)
+//       -> legacy intro-15 subscriptions: unchanged finalization (trial_end to
+//          the 1st, intl shipping) so commitments made under that offer hold
+//   invoice.paid            -> tag the invoice with the edition it pays for
+//   invoice.payment_failed  -> mark that edition as unpaid
+//   charge.refunded         -> mark that edition refunded (drops off the shipping list)
+// Subscriptions that are neither edition-v1 nor intro-15 are never written to.
 //
 // Security:
 //   1. Every request must carry a valid Stripe-Signature for the endpoint's
@@ -16,10 +25,15 @@
 
 import crypto from 'crypto';
 import { finalizeIntroSubscription } from './_intro-billing.js';
+import {
+  finalizeEditionSubscription, recordInvoicePaid, recordInvoicePaymentFailed, recordRefund,
+} from './_billing.js';
 
 export const config = { api: { bodyParser: false } }; // raw body for signature check
 
-const HANDLED = new Set(['checkout.session.completed', 'customer.subscription.created']);
+const SUBSCRIPTION_EVENTS = new Set(['checkout.session.completed', 'customer.subscription.created']);
+const HANDLED = new Set([...SUBSCRIPTION_EVENTS, 'invoice.paid', 'invoice.payment_failed', 'charge.refunded']);
+const ID = /^(in|ch|py)_[A-Za-z0-9]+$/;
 const TOLERANCE_SECONDS = 300;
 
 async function readRaw(req) {
@@ -71,19 +85,29 @@ export default async function handler(req, res) {
     return res.status(200).json({ received: true, ignored: 'mode_mismatch' });
   }
 
-  const subscriptionId = type === 'customer.subscription.created'
-    ? obj.id
-    : (typeof obj.subscription === 'string' ? obj.subscription : obj.subscription && obj.subscription.id);
-  if (!subscriptionId || !/^sub_[A-Za-z0-9]+$/.test(subscriptionId)) {
-    return res.status(200).json({ received: true, ignored: 'no_subscription' });
-  }
-
   try {
-    const result = await finalizeIntroSubscription(subscriptionId, STRIPE_SECRET_KEY);
+    let result;
+    if (SUBSCRIPTION_EVENTS.has(type)) {
+      // A checkout that has not been paid must not trigger anything.
+      if (type === 'checkout.session.completed' && obj.payment_status && obj.payment_status !== 'paid') {
+        return res.status(200).json({ received: true, ignored: 'not_paid' });
+      }
+      const subscriptionId = type === 'customer.subscription.created'
+        ? obj.id
+        : (typeof obj.subscription === 'string' ? obj.subscription : obj.subscription && obj.subscription.id);
+      if (!subscriptionId || !/^sub_[A-Za-z0-9]+$/.test(subscriptionId)) return res.status(200).json({ received: true, ignored: 'no_subscription' });
+      result = await finalizeEditionSubscription(subscriptionId, STRIPE_SECRET_KEY);
+      if (result.status === 'ignored') result = await finalizeIntroSubscription(subscriptionId, STRIPE_SECRET_KEY);
+    } else {
+      if (!obj.id || !ID.test(obj.id)) return res.status(200).json({ received: true, ignored: 'bad_id' });
+      if (type === 'invoice.paid') result = await recordInvoicePaid(obj.id, STRIPE_SECRET_KEY);
+      else if (type === 'invoice.payment_failed') result = await recordInvoicePaymentFailed(obj.id, STRIPE_SECRET_KEY);
+      else result = await recordRefund(obj.id, STRIPE_SECRET_KEY);
+    }
     if (result.status === 'ok') console.log('enroll-webhook', type, JSON.stringify(result));
     return res.status(200).json({ received: true, result });
   } catch (err) {
-    console.error('enroll-webhook error', type, subscriptionId, err);
+    console.error('enroll-webhook error', type, obj.id, err);
     return res.status(500).json({ error: 'retry' });
   }
 }
