@@ -486,11 +486,22 @@ const io=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecti
  }
  tick();setInterval(tick,1000);
 })();
-</script><script>
+</script><script id="price-from-stripe">
+// The displayed price follows the Stripe price that checkout charges
+// (/api/membership-price). No date-based switch: when the Stripe price is
+// changed, the page follows. If the lookup fails, the static $49 copy stays.
 (function(){
- const cutoff=Date.parse('2026-12-01T00:00:00-05:00');
- function update(){const early=Date.now()<cutoff;document.querySelectorAll('[data-rate]').forEach(el=>el.textContent=early?'$49':'$99');document.getElementById('rate-notice').hidden=!early;document.getElementById('membership-terms').textContent=early?'Retain your $49/month rate for as long as you remain a member. New memberships are $99/month starting December 1. Cancel anytime.':'$99/month. Cancel anytime.';document.getElementById('faq-rate').textContent=early?'Join before December 1 at $49/month and retain that rate while your membership remains active. New memberships are $99/month starting December 1.':'Membership is $99/month.';}
- update();setInterval(update,1000);
+ var FOUNDING=4900;
+ function apply(cents){
+  var amt='$'+(cents%100?(cents/100).toFixed(2):String(cents/100)),founding=cents===FOUNDING;
+  document.querySelectorAll('[data-rate]').forEach(function(el){el.textContent=amt;});
+  var n=document.getElementById('rate-notice');if(n)n.hidden=!founding;
+  if(!founding){
+   var t=document.getElementById('membership-terms');if(t)t.textContent=amt+'/month. Cancel anytime.';
+   var f=document.getElementById('faq-rate');if(f)f.textContent='Membership is '+amt+'/month.';
+  }
+ }
+ try{fetch('/api/membership-price',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(d){if(d&&d.unit_amount)apply(d.unit_amount);}).catch(function(){});}catch(e){}
 })();
 </script><script id="checkout-connect">
 // Connects the approved #membership-checkout button to the server-side enrollment
