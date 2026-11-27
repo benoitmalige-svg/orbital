@@ -31,11 +31,11 @@ import {
 
 export const BILLING_MODEL = 'edition-v1';
 
-// The membership price is whatever Stripe price STRIPE_MEMBERSHIP_PRICE_ID points
-// to (default: the existing $49/month Les Essais price). Today's payment and all
+// The membership price is whatever Stripe price STRIPE_MEMBERSHIP_PRICE_ID (or the
+// existing STRIPE_RECURRING_PRICE_ID) points to: the $49/month Les Essais price. Today's payment and all
 // checkout wording follow that price's amount, so changing the rate is a single
 // Vercel env change to another Stripe price. Existing subscriptions keep their price.
-export const MEMBERSHIP_PRICE_ID = process.env.STRIPE_MEMBERSHIP_PRICE_ID || 'price_1UNCNVGoK2Du26V2DBc8poO5';
+export const MEMBERSHIP_PRICE_ID = process.env.STRIPE_MEMBERSHIP_PRICE_ID || process.env.STRIPE_RECURRING_PRICE_ID || 'price_1UNCNVGoK2Du26V2DBc8poO5';
 
 function addMonths(year, month, n) {
   const total = (month - 1) + n;
