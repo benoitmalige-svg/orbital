@@ -1,0 +1,7 @@
+{
+  "redirects": [
+    { "source": "/les-essais/readers", "destination": "/les-essais/", "permanent": false },
+    { "source": "/les-essais/readers/", "destination": "/les-essais/", "permanent": false },
+    { "source": "/les-essais/readers/index.html", "destination": "/les-essais/", "permanent": false }
+  ]
+}
