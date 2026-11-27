@@ -90,6 +90,8 @@ export function sessionExpiry(nowSec, cutoffUnix) {
   return Math.max(min, Math.min(max, cutoffUnix));
 }
 
+export const DELAYED_PAYMENT_METHODS = ['us_bank_account', 'sepa_debit', 'bacs_debit', 'acss_debit', 'au_becs_debit'];
+
 const money = (cents) => '$' + (cents % 100 ? (cents / 100).toFixed(2) : String(cents / 100));
 
 // Builds the Checkout Session body. Pure: no network.
@@ -106,6 +108,10 @@ export function buildCheckoutParams({ now = new Date(), siteUrl, recurringPriceI
   p.append('mode', 'subscription');
   p.append('expires_at', String(sessionExpiry(nowSec, plan.cutoffUnix)));
   p.append('adaptive_pricing[enabled]', 'false'); // keep USD amounts exact
+  // Only payment methods that succeed at checkout: membership access (granted on
+  // checkout.session.completed) must follow a successful payment, never a pending
+  // bank debit.
+  DELAYED_PAYMENT_METHODS.forEach((m, i) => p.append('excluded_payment_method_types[' + i + ']', m));
 
   // Today's payment: one edition, charged immediately.
   p.append('line_items[0][price_data][currency]', 'usd');
